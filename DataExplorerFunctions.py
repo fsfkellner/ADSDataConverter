@@ -112,3 +112,17 @@ def difficultValues(fc, easyDict):
                 finalList = [row[5], row[2], row[-2]]
                 diffCausDict[row[-1]].append(finalList)
     return diffCausDict
+
+# def returnDuplicates(yourList):
+#     notDuplicate = set()
+#     isDuplicate = set()
+#     notDuplicate_add = notDuplicate.add
+#     isDuplicate_add = isDuplicate.add
+#     for item in yourList:
+#         if item in notDuplicate:
+#             isDuplicate(item)
+#         else:
+#             notDuplicate_add(item)
+#     return list(isDuplicate)
+# cursor = arcpy.da.SearchCursor("ADS_Data_1999_11015", 'ADS_Exploded_11015_ORIGINAL_ID')
+# allValuesList = [row[0] for row in cursor ]
