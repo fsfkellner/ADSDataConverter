@@ -9,32 +9,39 @@ sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script\NRGG_Tools')
 import NRGG
 
 tbx = arcpy.ImportToolbox(r'T:\FS\Reference\GeoTool\r01\Toolbox\NRGGFieldCalculator\NRGGFieldCalculator.pyt')
-fc = r'T:\FS\NFS\R01\Program\7140Geometronics\GIS\Workspace\fkellner\ADS_Testing\R1ADS1999.gdb\R1ADS1999Damage'
+fc = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\R01\ADS\Archived\Yearly\WithFNF\1999\R1ADS1999.gdb\R1ADS1999Damage'
 outPutGDB = r'T:\FS\NFS\R01\Program\7140Geometronics\GIS\Workspace\fkellner\ADS_Testing\Data_Exploder.gdb'
 
 scratchWorkspace = arcpy.env.workspace
 
-layerViewName = '{}_Copy'.format(os.path.basename(fc))
-featureClassesToDelete = arcpy.ListFeatureClasses()
-for featureClass in featureClassesToDelete:
-    arcpy.Delete_management(featureClass)
-arcpy.Compact_management(scratchWorkspace)
+# featureClassesToDelete = arcpy.ListFeatureClasses('*ADS')
+# for featureClass in featureClassesToDelete:
+#     arcpy.Delete_management(featureClass)
+# arcpy.Compact_management(scratchWorkspace)
 
-arcpy.FeatureClassToFeatureClass_conversion(fc, scratchWorkspace, layerViewName)
+# tablessToDelete = arcpy.ListTables('*ADS')
+# for table in tablessToDelete:
+#     arcpy.Delete_management(table)
+
+# arcpy.Compact_management(scratchWorkspace)
+
+layerViewName = '{}_Copy'.format(os.path.basename(fc))
+arcpy.FeatureClassToFeatureClass_conversion(
+    fc, scratchWorkspace, layerViewName)
+
+arcpy.AddField_management(layerViewName, "ADS_OBJECTID", 'LONG')
+arcpy.CalculateField_management(layerViewName, 'ADS_OBJECTID', '!OBJECTID!', 'PYTHON', '#')
 year = DataExplorerFunctions.findDigit(layerViewName)[1:]
 year = NRGG.listStringJoiner(year, '')
 
 tableName = 'ADS_Expanded'
 tableInMemoryPath = os.path.join('in_memory', tableName)
 
-
 arcpy.TableSelect_analysis(layerViewName, tableInMemoryPath)
 arcpy.AddField_management(tableInMemoryPath, 'ORIGINAL_ID', 'LONG')
 arcpy.AddField_management(tableInMemoryPath, 'DUPLICATE', 'SHORT')
 arcpy.AddField_management(tableInMemoryPath, 'TPA', 'FLOAT')
 arcpy.AddField_management(tableInMemoryPath, 'DCA_CODE', 'LONG')
-arcpy.AddField_management(tableInMemoryPath, "ADS_OBJECTID", 'LONG')
-tbx.CalculateFields(tableInMemoryPath, 'OBJECTID', 'ADS_OBJECTID', 'OBJECTID')
 arcpy.DeleteRows_management(tableName)
 arcpy.DeleteField_management(tableName, '''AREA;PERIMETER;ADS99_APP_;
     ADS99_APP_ID;DATA;MAP;BUG1;BUG2;BUG3;ORGAC;NO_TREES1;NO_TREES2;
@@ -107,7 +114,7 @@ for row in cursor:
         print row[0]
 
 DCAFiles = []
-for DCA in uniqueDCAValues:
+for DCA in uniqueDCAValues[:2]:
     print('Working on DCA value {}'.format(DCA))
     # make table of only single DCA values
     tableQuery = 'DCA_CODE = {}'.format(DCA)
@@ -123,7 +130,7 @@ for DCA in uniqueDCAValues:
     arcpy.FeatureClassToFeatureClass_conversion(
         layerViewName, arcpy.env.workspace,
         featureClassDCAName, featureClassQuery, 
-        'ADS_OBJECTID "ADS_OBJECTID" true true false 4 Long 0 0 ,First,#,R1ADS1999Damage,ADS_OBJECTID,-1,-1', '#')
+        'ADS_OBJECTID "ADS_OBJECTID" true true false 4 Long 0 0 ,First,#,{}},ADS_OBJECTID,-1,-1'.format(layerViewName))
 
     arcpy.JoinField_management(
         featureClassDCAName,
