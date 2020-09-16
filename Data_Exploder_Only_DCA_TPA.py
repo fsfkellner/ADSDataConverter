@@ -29,6 +29,8 @@ layerViewName = '{}_Copy'.format(os.path.basename(fc))
 arcpy.FeatureClassToFeatureClass_conversion(
     fc, scratchWorkspace, layerViewName)
 
+setDamageToZero(layerViewName)
+
 arcpy.AddField_management(layerViewName, "ADS_OBJECTID", 'LONG')
 arcpy.CalculateField_management(layerViewName, 'ADS_OBJECTID', '!OBJECTID!', 'PYTHON', '#')
 year = DataExplorerFunctions.findDigit(layerViewName)[1:]
@@ -60,7 +62,7 @@ print(uniqueDCAValues)
 easyDict = DataExplorerFunctions.easyValues(layerViewName, uniqueDCAValues)
 
 cursor = arcpy.da.InsertCursor(tableName,
-    ['ORIGINAL_ID', 'TPA', 'DCA_CODE', 'ACRES'])
+    ['ORIGINAL_ID', 'TPA', 'DCA_CODE', 'DAMAGE_CODE''ACRES'])
 for key in easyDict:
     rowList = list(easyDict[key])
     rowList.insert(0, key)
@@ -129,8 +131,8 @@ for DCA in uniqueDCAValues[:2]:
     featureClassDCAName = 'ADS_1999_{}'.format(DCA)
     arcpy.FeatureClassToFeatureClass_conversion(
         layerViewName, arcpy.env.workspace,
-        featureClassDCAName, featureClassQuery, 
-        'ADS_OBJECTID "ADS_OBJECTID" true true false 4 Long 0 0 ,First,#,{}},ADS_OBJECTID,-1,-1'.format(layerViewName))
+        featureClassDCAName, featureClassQuery,
+        'ADS_OBJECTID "ADS_OBJECTID" true true false 4 Long 0 0 ,First,#,{},ADS_OBJECTID,-1,-1'.format(layerViewName))
 
     arcpy.JoinField_management(
         featureClassDCAName,
@@ -142,3 +144,9 @@ for DCA in uniqueDCAValues[:2]:
 
 mergeName = os.path.join(outPutGDB, 'R1R4Final_ADS_{}_Expanded'.format(year))
 arcpy.Merge_management(DCAFiles, os.path.join(outPutGDB, mergeName))
+
+cursor = arcpy.da.UpdateCursor(mergeName, 'TPA', 'TPA = 0')
+
+for row in cursor:
+    row[0] = 1
+    cursor.updateRow(row)
