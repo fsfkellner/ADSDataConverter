@@ -1,4 +1,12 @@
 import arcpy
+import pandas as import pd 
+
+
+def getADSDCACodes(excelFile):
+    codes = pd.read_excel(excelFile)
+    codes = codes['Code'].tolist()
+    return codes
+
 
 def findDigit(stringText):
     textList = []
@@ -7,11 +15,27 @@ def findDigit(stringText):
             textList.append(character)
     return textList
 
-def easyValues(fc, uniqueDCAValues):
+
+def setDamageToZero(featureClass):
+    numbers = [1, 2, 3]
+    for number in numbers:
+        cursor = arcpy.da.UpdateCursor(
+                featureClass,
+                ['DMG_TYPE{}'.format(number),
+                'DCA{}'.format(number),
+                'TPA{}'.format(number)], 'DMG_TYPE{} NOT IN (1, 2)'.format(number))
+        for row in cursor:
+            row[0] = -1
+            row[1] = 99999
+            row[2] = -1
+            cursor.updateRow(row)
+
+
+def easyValues(featureClass, uniqueDCAValues):
     easyDict = {}
     for uD in uniqueDCAValues:
         cursor = arcpy.da.SearchCursor(
-            fc,
+            featureClass,
             ['OBJECTID',
             'TPA1',
             'TPA2',
@@ -32,10 +56,10 @@ def easyValues(fc, uniqueDCAValues):
     return easyDict
 
 
-def difficultValues(fc, easyDict):
+def difficultValues(featureClass, easyDict):
     diffCausDict = {}
     cursor = arcpy.da.SearchCursor(
-        fc,
+        featureClass,
         ['DCA1',
         'DCA2',
         'DCA3',
@@ -112,6 +136,13 @@ def difficultValues(fc, easyDict):
                 finalList = [row[5], row[2], row[-2]]
                 diffCausDict[row[-1]].append(finalList)
     return diffCausDict
+
+
+def uniqueValuesFromFeatureField(featureClass, field):
+    with arcpy.da.SearchCursor as cursor:
+        uniqueValues = list(set{row[0] for row in cursor})
+    return uniqueValues
+
 
 # def returnDuplicates(yourList):
 #     notDuplicate = set()
