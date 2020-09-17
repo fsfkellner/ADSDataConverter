@@ -1,5 +1,4 @@
 import arcpy
-import pandas as import pd 
 
 
 def getADSDCACodes(excelFile):
