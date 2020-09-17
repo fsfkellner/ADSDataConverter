@@ -139,7 +139,7 @@ def difficultValues(featureClass, easyDict):
 
 def uniqueValuesFromFeatureField(featureClass, field):
     with arcpy.da.SearchCursor as cursor:
-        uniqueValues = list(set{row[0] for row in cursor})
+        uniqueValues = list(set(row[0] for row in cursor))
     return uniqueValues
 
 
