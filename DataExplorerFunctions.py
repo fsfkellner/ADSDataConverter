@@ -1,5 +1,36 @@
 import arcpy
 
+def deleteUneededFields(featureClass, fieldsToKeep):
+    fieldsToDelete = [
+        field.name for field in arcpy.ListFields(featureClass)
+        if field.name not in fieldsToKeep
+        and not field.required]
+    arcpy.DeleteField_management(featureClass, fieldsToDelete)
+
+
+def makeEmptyADSTable(featureClass):
+    tableName = 'ADS_Expanded'
+    tableInMemoryPath = os.path.join('in_memory', tableName)
+
+    arcpy.TableSelect_analysis(featureClass, tableInMemoryPath)
+    arcpy.AddField_management(tableInMemoryPath, 'ORIGINAL_ID', 'LONG')
+    arcpy.AddField_management(tableInMemoryPath, 'DUPLICATE', 'SHORT')
+    arcpy.AddField_management(tableInMemoryPath, 'TPA', 'FLOAT')
+    arcpy.AddField_management(tableInMemoryPath, 'DCA_CODE', 'LONG')
+    arcpy.AddField_management(tableInMemoryPath, 'HOST', 'SHORT')
+    arcpy.DeleteRows_management(tableName)
+    fieldsToKeep = [
+        'ORIGINAL_ID', 'DUPLICATE', 'TPA', 'DCA_CODE', 'HOST', 'ACRES'
+    ]
+    deleteUneededFields(tableName, fieldsToKeep)
+    
+
+
+def makeCopyOfOriginalOBJECTID(featurClass):
+    arcpy.AddField_management(featurClass, "ADS_OBJECTID", 'LONG')
+    arcpy.CalculateField_management(
+        featurClass, 'ADS_OBJECTID', '!OBJECTID!', 'PYTHON', '#')
+
 
 def getADSDCACodes(excelFile):
     codes = pd.read_excel(excelFile)
@@ -142,6 +173,45 @@ def uniqueValuesFromFeatureField(featureClass, field):
         uniqueValues = list(set(row[0] for row in cursor))
     return uniqueValues
 
+
+def mtnPineHandling(featureClass, DCAValue):
+    arcpy.AddField_management(featureClass "ADS_OBJECTID", 'LONG')
+    arcpy.CalculateField_management(featureClass, 'ADS_OBJECTID', '!OBJECTID!', 'PYTHON', '#')
+    DCADict = {}
+    outputTableName = 'in_memory\\DCA{}'.format(DCAValue)
+    arcpy.TableSelect_analysis(
+        featureClass,
+        outputTableName,
+        'DCA1 = {0} OR DCA2 = {0} OR DCA3 = {0}'.format(DCAValue))
+
+    for number in  range(1, 4):
+        fields = [
+            'DCA{}'.format(number),
+            'TPA{}'.format(number),
+            'HOST{}'.format(number)]
+        cursor = arcpy.da.UpdateCursor(outputTableName, fields)
+    for row in cursor:
+        if row[0] != DCAValue:
+            row[0] = 99999
+            row[1] = -1
+            row[2] = -1
+
+    for number in range(1,4):
+        fields = [
+            'ADS_OBJECTID',
+            'DCA{}'.format(number),
+            'TPA{}'.format(number),
+            'HOST{}'.format(number),
+            'ACRES']
+
+    cursor = arcpy.da.SearchCursor(outputTableName, fields)
+    for row in cursor:
+        if row[0] not in DCADict.keys() and row[1] == DCAValue:
+            DCADict[row[0]] = []
+            DCADict[row[0]].append([row[1], row[2], row[3]])
+        elif row[0] in DCADict.keys() and row[1] == DCAValue:
+            DCADict[row[0]].append([row[1], row[2], row[3]])
+    return DCADict
 
 # def returnDuplicates(yourList):
 #     notDuplicate = set()
