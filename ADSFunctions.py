@@ -3,6 +3,9 @@ import os
 
 
 def deleteUneededFields(featureClass, fieldsToKeep):
+    '''Provide a list of fields to keep within the featureclass
+    and all other fields that are not required will be deleted
+    '''
     fieldsToDelete = [
         field.name for field in arcpy.ListFields(featureClass)
         if field.name not in fieldsToKeep
@@ -11,6 +14,10 @@ def deleteUneededFields(featureClass, fieldsToKeep):
 
 
 def makeEmptyADSTable(nameOfTable, outputWorkspace):
+    '''Makes an empty table with the apporiate fields
+    so historic ADS data can populated representing a 
+    single record for each value found in DCA1, DCA2 and DCA3
+    '''
     tableName = nameOfTable
     arcpy.CreateTable_management(outputWorkspace, tableName)
     arcpy.AddField_management(tableName, 'ORIGINAL_ID', 'LONG')
@@ -21,27 +28,34 @@ def makeEmptyADSTable(nameOfTable, outputWorkspace):
     arcpy.AddField_management(tableName, 'ACRES', 'FLOAT')
 
 
+def makeNewGDBIfDoesntExist(folder, GDBName):
+    '''Makes a new file geodatabase if the 
+    GDB does not already exist. Returns the the path
+    of the GDB
+    '''
+    if arcpy.Exists(os.path.join(folder, GDBName)):
+        pass
+    else:
+        arcpy.CreateFileGDB_management(folder, GDBName)
+    GDBPath = os.path.join(folder, GDBName)
+    return GDBPath
+
+
 def makeCopyOfOriginalOBJECTID(featurClass):
+    '''Adds a new fields "ADS_OBJECTID" so that 
+    single DCA values can be traced back to the original data
+    '''
     arcpy.AddField_management(featurClass, "ADS_OBJECTID", 'LONG')
     arcpy.CalculateField_management(
         featurClass, 'ADS_OBJECTID', '!OBJECTID!', 'PYTHON', '#')
 
 
-def getADSDCACodes(excelFile):
-    codes = pd.read_excel(excelFile)
-    codes = codes['Code'].tolist()
-    return codes
-
-
-def findDigit(stringText):
-    textList = []
-    for character in stringText:
-        if character.isdigit():
-            textList.append(character)
-    return textList
-
-
 def setDamageToZero(featureClass):
+    '''Sets the Damage Type 1, 2 or 3
+    fields to null if that values don't equal
+    1 or 2 which represent mortality or defoliation
+    should only be used in a copy of the ADS data
+    '''
     numbers = [1, 2, 3]
     for number in numbers:
         cursor = arcpy.da.UpdateCursor(
@@ -59,13 +73,21 @@ def setDamageToZero(featureClass):
             cursor.updateRow(row)
 
 
-def uniqueValuesFromFeatureField(featureClass, field):
+def uniqueValuesFromFeatureClassField(featureClass, field):
+    '''Returns the unique values from a
+    fields in a feature class
+    '''
     with arcpy.da.SearchCursor as cursor:
         uniqueValues = list(set(row[0] for row in cursor))
     return uniqueValues
 
 
 def convertNonDCAValuesToNull(inputTable, DCAValue):
+    '''Converts and values in DCA1, DCA2 or DCA3 that are not
+    equal to the input DCAValue. The TPA and HOST fields
+    associated with DCA1, DCA2 or DCA3 are
+    set to null values as well.
+    '''
     for number in range(1, 4):
             fields = [
                 'DCA{}'.format(number),
@@ -81,6 +103,10 @@ def convertNonDCAValuesToNull(inputTable, DCAValue):
 
 
 def getEveryRecordForSingleDCAValue(featureClass, DCAValue, scratchWorkspace):
+    '''Returns a dictionary with key values representing the historic ADS
+    data's Original OBJECTID and values of
+    TPA, DCA, HOST and ACRES for each unique DCAValue
+    '''
     DCADict = {}
     scratchWorkspace = scratchWorkspace
     outputTableName = 'DCA{}'.format(DCAValue)
@@ -112,6 +138,10 @@ def getEveryRecordForSingleDCAValue(featureClass, DCAValue, scratchWorkspace):
 
 
 def findAllFeatureClasses(folder):
+    '''Returns a list of all the feature classes
+    that are within and the provided folder and any
+    addtionaly subfolders
+    '''
     featureClasses = []
     walk = arcpy.da.Walk(folder, datatype="FeatureClass")
 
@@ -123,6 +153,10 @@ def findAllFeatureClasses(folder):
 
 
 def getAllUniqueDCAValues(featureClass):
+    '''Returns a list of all the unique DCA values
+    from the 3 fields in the Historic ADS data
+    DCA1, DCA2, DCA3
+    '''
     cursor = arcpy.da.SearchCursor(featureClass, ['DCA1', 'DCA2', 'DCA3'])
     uniqueDCAValues = list(
         set(row for rows in cursor for row in rows if row != 99999))
@@ -130,7 +164,27 @@ def getAllUniqueDCAValues(featureClass):
     return uniqueDCAValues
 
 
+def returnDuplicates(yourList):
+    '''Takes an input list and returns
+    a list of only the duplicate values
+    '''
+    notDuplicate = set()
+    isDuplicate = set()
+    notDuplicate_add = notDuplicate.add
+    isDuplicate_add = isDuplicate.add
+    for item in yourList:
+        if item in notDuplicate:
+            isDuplicate_add(item)
+        else:
+            notDuplicate_add(item)
+    return list(isDuplicate)
+
+
 def updateTablewithEveryDCARecord(tableName, everyDCARecordDict):
+    '''Takes an empty table with appropriate fields added
+    to it and updates so each unique DCA value
+    gets a row in the input table
+    '''
     cursor = arcpy.da.InsertCursor(
             tableName,
             ['ORIGINAL_ID', 'TPA', 'DCA_CODE', 'HOST', 'ACRES', 'DUPLICATE'])
@@ -174,18 +228,23 @@ def mergeDuplicatesNoHost(tableName, workspace):
 
     arcpy.SelectLayerByAttribute_management(
         mergedTableName, "NEW_SELECTION", 'DUPLICATE = 1')
-    arcpy.DeleteRows_management(mergedTableName)
-    arcpy.SelectLayerByAttribute_management(mergedTableName, "CLEAR_SELECTION")
+    count = arcpy.GetCount_management(mergedTableName)
+    if count == 0:
+        pass
+    else:
+        arcpy.DeleteRows_management(mergedTableName)
+        arcpy.SelectLayerByAttribute_management(
+            mergedTableName, "CLEAR_SELECTION")
+
+# def getADSDCACodes(excelFile):
+#     codes = pd.read_excel(excelFile)
+#     codes = codes['Code'].tolist()
+#     return codes
 
 
-def returnDuplicates(yourList):
-    notDuplicate = set()
-    isDuplicate = set()
-    notDuplicate_add = notDuplicate.add
-    isDuplicate_add = isDuplicate.add
-    for item in yourList:
-        if item in notDuplicate:
-            isDuplicate_add(item)
-        else:
-            notDuplicate_add(item)
-    return list(isDuplicate)
+# def findDigit(stringText):
+#     textList = []
+#     for character in stringText:
+#         if character.isdigit():
+#             textList.append(character)
+#     return textList
