@@ -173,6 +173,21 @@ def uniqueValuesFromFeatureField(featureClass, field):
         uniqueValues = list(set(row[0] for row in cursor))
     return uniqueValues
 
+def convertNonDCAValuesToNull(inputTable, DCAValue)
+    for number in range(1, 4):
+            fields = [
+                'DCA{}'.format(number),
+                'TPA{}'.format(number),
+                'HOST{}'.format(number)]
+            cursor = arcpy.da.UpdateCursor(inputTable, fields)
+            for row in cursor:
+                if row[0] != DCAValue and row[0] != 99999:
+                    print(row[0])
+                    row[0] = 99999
+                    row[1] = -1
+                    row[2] = -1
+                cursor.updateRow(row)
+
 
 def getEveryRecordForDCAValue(featureClass, DCAValue, scratchWorkspace):
     DCADict = {}
@@ -185,19 +200,7 @@ def getEveryRecordForDCAValue(featureClass, DCAValue, scratchWorkspace):
         outputTableNamePath,
         'DCA1 = {0} OR DCA2 = {0} OR DCA3 = {0}'.format(DCAValue))
 
-    for number in range(1, 4):
-        fields = [
-            'DCA{}'.format(number),
-            'TPA{}'.format(number),
-            'HOST{}'.format(number)]
-        cursor = arcpy.da.UpdateCursor(outputTableName, fields)
-        for row in cursor:
-            if row[0] != DCAValue and row[0] != 99999:
-                print(row[0])
-                row[0] = 99999
-                row[1] = -1
-                row[2] = -1
-            cursor.updateRow(row)
+    convertNonDCAValuesToNull(outputTableName, DCAValue)
 
     for number in range(1, 4):
         fields = [
