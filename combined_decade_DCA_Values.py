@@ -42,8 +42,8 @@ for DCAFile in DCAFiles:
         #arcpy.CalculateField_management(tempDCAbyYearName, 'YEAR{}'.format(year), '!YEAR!', 'PYTHON')
         tempFilesForUnion.append(tempDCAbyYearName)
 arcpy.Union_analysis(tempFilesForUnion, 'in_memory\\UnionTest')
-arcpy.AddField_management('UnionTest', 'YEARSUM', 'SHORT')
-arcpy.AddField_management('UnionTest', 'TPASUM', 'DOUBLE')
+arcpy.AddField_management('UnionTest', 'TOTAL_YEARS', 'SHORT')
+arcpy.AddField_management('UnionTest', 'TOTAL_TPA', 'DOUBLE')
 
 #arcpy.DeleteField_management('UnionTest', 'YEAR')
 
@@ -71,9 +71,9 @@ for row in cursor:
     row[4] = sumRow
     cursor.updateRow(row)
 
-fieldsToKeep = ['DCA_CODE', 'YEARSUM', 'TPASUM']
-fieldstoDelete = [field.name for field in arcpy.ListFields('UnionTest') if field.name not in fieldsToKeep]
-arcpy.DeleteField_management('UnionTest', fieldsToKeep)
+fieldsToKeep = ['DCA_CODE', 'TOTAL_YEARS', 'TOTAL_TPA']
+fieldstoDelete = [field.name for field in arcpy.ListFields('UnionTest') if field.name not in fieldsToKeep and not field.required]
+arcpy.DeleteField_management('UnionTest', fieldstoDelete)
 
 # featureClassesToDelete = arcpy.ListFeatureClasses('*ADS')
 # for featureClass in featureClassesToDelete:

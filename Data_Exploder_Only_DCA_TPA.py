@@ -2,46 +2,26 @@ import os
 from collections import Counter
 import arcpy
 import sys
-sys.path.append(r'T:\FS\NFS\R01\Program\7140Geometronics\GIS\Workspace\fkellner')
+# sys.path.append(r'T:\FS\NFS\R01\Program\7140Geometronics\GIS\Workspace\fkellner')
+sys.path.append(r'C:\Data\ADSDataConverter')
 import DataExplorerFunctions
 
-sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script\NRGG_Tools')
+# sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script\NRGG_Tools')
+sys.path.append(r'C:\Data')
 import NRGG
 
-tbx = arcpy.ImportToolbox(r'T:\FS\Reference\GeoTool\r01\Toolbox\NRGGFieldCalculator\NRGGFieldCalculator.pyt')
-#fc = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\R01\ADS\Archived\Yearly\WithFNF\1999\R1ADS1999.gdb\R1ADS1999Damage'
-outPutGDB = r'T:\FS\NFS\R01\Program\7140Geometronics\GIS\Workspace\fkellner\ADS_Testing\Data_Exploder.gdb'
-
-folder = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\R01\ADS\Archived\Yearly\WithFNF'
-
-featureClasses = []
-walk = arcpy.da.Walk(folder, datatype="FeatureClass")
-
-for dirpath, dirnames, filenames in walk:
-    for filename in filenames:
-        if 'Damage' in os.path.join(dirpath, filename):
-            featureClasses.append(os.path.join(dirpath, filename))
-
-featureClasses = featureClasses[1:11]
+outPutGDB = r'C:\Data\Testing_ADS.gdb'
 scratchWorkspace = arcpy.env.workspace
 
 
-# featureClassesToDelete = arcpy.ListFeatureClasses('*ADS')
-# for featureClass in featureClassesToDelete:
-#     arcpy.Delete_management(featureClass)
-# arcpy.Compact_management(scratchWorkspace)
-
-# tablessToDelete = arcpy.ListTables('*ADS')
-# for table in tablessToDelete:
-#     arcpy.Delete_management(table)
-
-# arcpy.Compact_management(scratchWorkspace)
-
-for fc in featureClasses:
-fc = 
+fc = r'C:\Data\R1ADS1999.gdb\R1ADS1999Damage'
 layerViewName = '{}_Copy'.format(os.path.basename(fc))
+
 arcpy.FeatureClassToFeatureClass_conversion(
     fc, scratchWorkspace, layerViewName)
+
+uniqueDCAValues = DataExplorerFunctions.getAllUniqueDCAValues(
+    layerViewName)
 
 DataExplorerFunctions.setDamageToZero(layerViewName)
 
@@ -50,117 +30,14 @@ DataExplorerFunctions.makeCopyOfOriginalOBJECTID(layerViewName)
 year = DataExplorerFunctions.findDigit(layerViewName)[1:]
 year = NRGG.listStringJoiner(year, '')
 
+for DCAValue in uniqueDCAValues:
 
-DataExplorerFunctions.makeEmptyADSTable(layerViewName)
+    tableName = 'ADS_Expanded_{}'.format(DCAValue)
 
-cursor = arcpy.da.SearchCursor(layerViewName, ['DCA1', 'DCA2', 'DCA3'])
-uniqueDCAValues = list(
-    set(row for rows in cursor for row in rows if row != 99999))
-uniqueDCAValues.sort()
-print(uniqueDCAValues)
+    DataExplorerFunctions.makeEmptyADSTable(tableName, outPutGDB)
 
-diffCausDict = mtnPineHandling(featureClass, DCAValue)
+    everyDCARecord = DataExplorerFunctions.getEveryRecordForDCAValue(
+        layerViewName, DCAValue, scratchWorkspace)
 
-# easyDict = DataExplorerFunctions.easyValues(layerViewName, uniqueDCAValues)
-
-# cursor = arcpy.da.InsertCursor(tableName,
-#     ['ORIGINAL_ID', 'TPA', 'DCA_CODE', 'ACRES'])
-# for key in easyDict:
-#     rowList = list(easyDict[key])
-#     rowList.insert(0, key)
-#     cursor.insertRow(rowList)
-# print(arcpy.GetCount_management(tableName)[0])
-# del(key)
-
-# diffCausDict = DataExplorerFunctions.difficultValues(layerViewName, easyDict)
-
-# print(len(diffCausDict))
-
-cursor = arcpy.da.InsertCursor(tableName,
-    ['ORIGINAL_ID', 'TPA', 'DCA_CODE', 'ACRES', 'DUPLICATE'])
-for key in diffCausDict:
-    if diffCausDict[key]:
-        if len(diffCausDict[key]) <= 1:
-            for causList in diffCausDict[key]:
-                causList.insert(0,key)
-                causList.append(None)
-                cursor.insertRow(causList)
-        else:
-            count = 0
-            for causList in diffCausDict[key]:
-                if count >= 1:
-                    causList.insert(0,str(key))
-                    causList.append(1)
-                    cursor.insertRow(causList)
-                    count += 1
-                else:
-                    causList.insert(0,str(key))
-                    causList.append(None)
-                    cursor.insertRow(causList)
-                    count += 1
-print(arcpy.GetCount_management(tableName)[0])
-del(key)
-
-finalTableName = 'ADS_Expanded_{0}'.format(year)
-arcpy.TableToTable_conversion(
-    tableName, outPutGDB, finalTableName)
-
-ids = dict(Counter(
-    [row[0] for row in arcpy.da.SearchCursor(
-        os.path.basename(tableName), 'ORIGINAL_ID')]))
-dict((k, v) for k, v in ids.items() if v == 2)
-
-    # NEW_IDS = [row[0] for row in arcpy.da.SearchCursor(
-    #     os.path.basename(tableName), 'ORIGINAL_ID')]
-    # cursor = arcpy.da.SearchCursor(layerViewName, 'OBJECTID')
-    # for row in cursor:
-    #     if row[0] not in NEW_IDS:
-    #         print row[0]
-
-    DCAFiles = []
-    for DCA in uniqueDCAValues:
-        print('Working on DCA value {}'.format(DCA))
-        # make table of only single DCA values
-        tableQuery = 'DCA_CODE = {}'.format(DCA)
-        cursor = arcpy.da.SearchCursor(finalTableName, "ORIGINAL_ID", tableQuery)
-        ids = [row[0] for row in cursor]
-        if len(ids) == 1:
-            ids = ids[0]
-            featureClassQuery = 'OBJECTID IN ({})'.format(ids)
-        else:
-            ids = str(tuple(ids))
-            featureClassQuery = 'OBJECTID IN {}'.format(ids)
-        DCATable = 'ADS_{}_Table_{}'.format(year,DCA)
-        arcpy.TableToTable_conversion(finalTableName, arcpy.env.workspace, DCATable, tableQuery)
-
-        # DCAFeature = 'ADS_1999_{}'
-        # featureClassQuery = 'OBJECTID IN {}'.format(ids)
-        featureClassDCAName = 'ADS_{}_{}'.format(year, DCA)
-        arcpy.FeatureClassToFeatureClass_conversion(
-            layerViewName, arcpy.env.workspace,
-            featureClassDCAName, featureClassQuery,
-            'ADS_OBJECTID "ADS_OBJECTID" true true false 4 Long 0 0 ,First,#,{},ADS_OBJECTID,-1,-1'.format(layerViewName))
-
-        arcpy.JoinField_management(
-            featureClassDCAName,
-            'ADS_OBJECTID',
-            DCATable,
-            'ORIGINAL_ID', 'DUPLICATE;TPA;DCA_CODE;ACRES')
-
-        DCAFiles.append(featureClassDCAName)
-
-    mergeName = os.path.join(outPutGDB, 'R1R4Final_ADS_{}_Expanded'.format(year))
-    arcpy.Merge_management(DCAFiles, os.path.join(outPutGDB, mergeName))
-
-    cursor = arcpy.da.UpdateCursor(mergeName, 'TPA', 'TPA = 0')
-
-    for row in cursor:
-        row[0] = 1
-        cursor.updateRow(row)
-    arcpy.AddField_management(mergeName, 'YEAR', 'SHORT')
-
-    cursor = arcpy.da.UpdateCursor(mergeName, 'YEAR')
-
-    for row in cursor:
-        row[0] = 1
-        cursor.updateRow(row)
+    DataExplorerFunctions.updateTablewithEveryDCARecord(
+        tableName, everyDCARecord)
