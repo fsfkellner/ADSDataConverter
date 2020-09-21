@@ -1,10 +1,9 @@
 import os
-from collections import Counter
 import arcpy
 import sys
 # sys.path.append(r'T:\FS\NFS\R01\Program\7140Geometronics\GIS\Workspace\fkellner')
 sys.path.append(r'C:\Data\ADSDataConverter')
-import DataExplorerFunctions
+import ADSFunctions
 
 # sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script\NRGG_Tools')
 sys.path.append(r'C:\Data')
@@ -20,24 +19,26 @@ layerViewName = '{}_Copy'.format(os.path.basename(fc))
 arcpy.FeatureClassToFeatureClass_conversion(
     fc, scratchWorkspace, layerViewName)
 
-uniqueDCAValues = DataExplorerFunctions.getAllUniqueDCAValues(
+uniqueDCAValues = ADSFunctions.getAllUniqueDCAValues(
     layerViewName)
 
-DataExplorerFunctions.setDamageToZero(layerViewName)
+ADSFunctions.setDamageToZero(layerViewName)
 
-DataExplorerFunctions.makeCopyOfOriginalOBJECTID(layerViewName)
+ADSFunctions.makeCopyOfOriginalOBJECTID(layerViewName)
 
-year = DataExplorerFunctions.findDigit(layerViewName)[1:]
+year = ADSFunctions.findDigit(layerViewName)[1:]
 year = NRGG.listStringJoiner(year, '')
 
+uniqueDCAValues.remove(11006)
 for DCAValue in uniqueDCAValues:
+    tableName = 'ADS_Expanded_{}_{}'.format(DCAValue, year)
 
-    tableName = 'ADS_Expanded_{}'.format(DCAValue)
+    ADSFunctions.makeEmptyADSTable(tableName, outPutGDB)
 
-    DataExplorerFunctions.makeEmptyADSTable(tableName, outPutGDB)
-
-    everyDCARecord = DataExplorerFunctions.getEveryRecordForDCAValue(
+    everyDCARecord = ADSFunctions.getEveryRecordForSingleDCAValue(
         layerViewName, DCAValue, scratchWorkspace)
 
-    DataExplorerFunctions.updateTablewithEveryDCARecord(
+    ADSFunctions.updateTablewithEveryDCARecord(
         tableName, everyDCARecord)
+    
+    ADSFunctions.mergeDuplicatesNoHost(tableName, outPutGDB)
