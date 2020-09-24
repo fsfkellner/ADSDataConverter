@@ -2,6 +2,18 @@ import arcpy
 import os
 
 
+def findDigits(stringText):
+    '''Takes a string of text and returns
+    all the digits found in the string
+    and returns a list of those digits
+    '''
+    textList = []
+    for character in stringText:
+        if character.isdigit():
+            textList.append(character)
+    return textList
+
+
 def deleteUneededFields(featureClass, fieldsToKeep):
     '''Provide a list of fields to keep within the featureclass
     and all other fields that are not required will be deleted
@@ -29,7 +41,7 @@ def makeEmptyADSTable(nameOfTable, outputWorkspace):
 
 
 def makeNewGDBIfDoesntExist(folder, GDBName):
-    '''Makes a new file geodatabase if the 
+    '''Makes a new file geodatabase if the
     GDB does not already exist. Returns the the path
     of the GDB
     '''
@@ -37,12 +49,13 @@ def makeNewGDBIfDoesntExist(folder, GDBName):
         pass
     else:
         arcpy.CreateFileGDB_management(folder, GDBName)
+
     GDBPath = os.path.join(folder, GDBName)
     return GDBPath
 
 
 def makeCopyOfOriginalOBJECTID(featurClass):
-    '''Adds a new fields "ADS_OBJECTID" so that 
+    '''Adds a new fields "ADS_OBJECTID" so that
     single DCA values can be traced back to the original data
     '''
     arcpy.AddField_management(featurClass, "ADS_OBJECTID", 'LONG')
@@ -108,9 +121,8 @@ def getEveryRecordForSingleDCAValue(featureClass, DCAValue, scratchWorkspace):
     TPA, DCA, HOST and ACRES for each unique DCAValue
     '''
     DCADict = {}
-    scratchWorkspace = scratchWorkspace
     outputTableName = 'DCA{}'.format(DCAValue)
-    outputTableNamePath = os.path.join('in_memory', outputTableName)
+    outputTableNamePath = os.path.join(scratchWorkspace, outputTableName)
 
     arcpy.TableSelect_analysis(
         featureClass,
@@ -164,6 +176,20 @@ def getAllUniqueDCAValues(featureClass):
     return uniqueDCAValues
 
 
+def returnAllValuesFromField(featureClass, field):
+    allValues = [row[0] for row in arcpy.da.SearchCursor(featureClass, field)]
+    allValues.sort()
+    return allValues
+
+
+def selectPolygonsFromOriginalData(
+        featureClass, stringListOfIDs, outputName, workspace):
+    outPutPath = os.path.join(workspace, outputName)
+    arcpy.Select_analysis(
+        featureClass,
+        outPutPath, 'ADS_OBJECTID IN ({})'.format(stringListOfIDs))
+
+
 def returnDuplicates(yourList):
     '''Takes an input list and returns
     a list of only the duplicate values
@@ -212,39 +238,37 @@ def updateTablewithEveryDCARecord(tableName, everyDCARecordDict):
 
 
 def mergeDuplicatesNoHost(tableName, workspace):
+    '''Takes the table of Expanded DCA values,
+    where every row represents a unique record
+    and combines the TPA for duplicates resulting from
+    the same DCA value but different HOST values
+    '''
+    mergedTableName = '{}_Merged'.format(tableName)
     cursor = arcpy.da.SearchCursor(
         tableName, ['ORIGINAL_ID', 'TPA'], 'DUPLICATE = 1')
     duplicatDict = {row[0]: row[1] for row in cursor}
 
-    mergedTableName = '{}_Merged'.format(tableName)
-    arcpy.TableToTable_conversion(tableName, workspace, mergedTableName)
+    if duplicatDict:
+        arcpy.TableToTable_conversion(tableName, workspace, mergedTableName)
 
-    cursor = arcpy.da.UpdateCursor(
-        mergedTableName, ['ORIGINAL_ID', 'TPA'], 'DUPLICATE IS NULL')
-    for row in cursor:
-        if row[0] in duplicatDict.keys():
-            row[1] = row[1] + duplicatDict[row[0]]
-        cursor.updateRow(row)
+        cursor = arcpy.da.UpdateCursor(
+            mergedTableName, ['ORIGINAL_ID', 'TPA'], 'DUPLICATE IS NULL')
+        for row in cursor:
+            if row[0] in duplicatDict.keys():
+                row[1] = row[1] + duplicatDict[row[0]]
+            cursor.updateRow(row)
 
-    arcpy.SelectLayerByAttribute_management(
-        mergedTableName, "NEW_SELECTION", 'DUPLICATE = 1')
-    count = arcpy.GetCount_management(mergedTableName)
-    if count == 0:
-        pass
-    else:
+        arcpy.SelectLayerByAttribute_management(
+            mergedTableName, "NEW_SELECTION", 'DUPLICATE = 1')
+
         arcpy.DeleteRows_management(mergedTableName)
         arcpy.SelectLayerByAttribute_management(
             mergedTableName, "CLEAR_SELECTION")
+    else:
+        arcpy.TableToTable_conversion(tableName, workspace, mergedTableName)
+    return mergedTableName
 
 # def getADSDCACodes(excelFile):
 #     codes = pd.read_excel(excelFile)
 #     codes = codes['Code'].tolist()
 #     return codes
-
-
-# def findDigit(stringText):
-#     textList = []
-#     for character in stringText:
-#         if character.isdigit():
-#             textList.append(character)
-#     return textList

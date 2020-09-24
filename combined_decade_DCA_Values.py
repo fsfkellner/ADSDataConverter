@@ -4,7 +4,7 @@ import arcpy
 import sys
 import copy
 sys.path.append(r'T:\FS\NFS\R01\Program\7140Geometronics\GIS\Workspace\fkellner')
-import DataExplorerFunctions
+import ADSFunctions
 
 sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script\NRGG_Tools')
 import NRGG
@@ -13,9 +13,31 @@ tbx = arcpy.ImportToolbox(r'T:\FS\Reference\GeoTool\r01\Toolbox\NRGGFieldCalcula
 #fc = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\R01\ADS\Archived\Yearly\WithFNF\1999\R1ADS1999.gdb\R1ADS1999Damage'
 inPutGDB = r'T:\FS\NFS\R01\Program\7140Geometronics\GIS\Workspace\fkellner\ADS_Testing\Data_Exploder.gdb'
 
-arcpy.env.workspace = inPutGDB
+folderWithGDBs = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\ADS_For_RS_2020'
+arcpy.env.workspace = folderWithGDBs
 
-DCAFiles = arcpy.ListFeatureClasses()
+decadeRange = range(1990, 2000)
+
+
+#DCAFiles = arcpy.ListFeatureClasses()
+GDBs = arcpy.ListWorkspaces()
+
+
+tables = []
+for GDB in GDBs:
+    year = ADSFunctions.findDigits(os.path.basename(GDB))
+    year = int(NRGG.listStringJoiner(year, ''))
+    if year in decadeRange:
+        arcpy.env.workspace = GDB
+        tempTable = [table for table in arcpy.ListTables('*11015*')if 'Merged' in table][0]
+        tables.append(os.path.join(GDB, tempTable))
+
+
+decadeGDBs = [GDB for GDBs in GDBS if ]
+year = ADSFunctions.findDigits(layerViewName)[1:]
+year = NRGG.listStringJoiner(year, '')
+
+
 
 tempFilesForUnion = []
 uniqueDCAValues = [11015]
