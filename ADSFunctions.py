@@ -1,5 +1,6 @@
 import arcpy
 import os
+from collections import Counter
 
 
 def findDigits(stringText):
@@ -25,12 +26,11 @@ def deleteUneededFields(featureClass, fieldsToKeep):
     arcpy.DeleteField_management(featureClass, fieldsToDelete)
 
 
-def makeEmptyADSTable(nameOfTable, outputWorkspace):
+def makeEmptyADSTable(tableName, outputWorkspace):
     '''Makes an empty table with the apporiate fields
     so historic ADS data can populated representing a 
     single record for each value found in DCA1, DCA2 and DCA3
     '''
-    tableName = nameOfTable
     arcpy.CreateTable_management(outputWorkspace, tableName)
     arcpy.AddField_management(tableName, 'ORIGINAL_ID', 'LONG')
     arcpy.AddField_management(tableName, 'DUPLICATE', 'SHORT')
@@ -244,6 +244,17 @@ def mergeDuplicatesNoHost(tableName, workspace):
     the same DCA value but different HOST values
     '''
     mergedTableName = '{}_Merged'.format(tableName)
+    countOfIDs = Counter(returnAllValuesFromField(tableName, 'ORIGINAL_ID'))
+    if 2 in countOfIDs.values() or 3 in countOfIDs.values():
+        duplicatDict = {}
+        cursor = arcpy.da.SearchCursor(
+            tableName, ['ORIGINAL_ID', 'TPA'], 'DUPLICATE = 1')
+        for row in cursor:
+            if row[0] not in duplicatDict:
+                duplicatDict[row[0]] = row[1]
+            elif row[0] in duplicatDict:
+                duplicatDict[row[0]] = row[1] + duplicatDict[row[0]]
+
     cursor = arcpy.da.SearchCursor(
         tableName, ['ORIGINAL_ID', 'TPA'], 'DUPLICATE = 1')
     duplicatDict = {row[0]: row[1] for row in cursor}

@@ -11,10 +11,10 @@ import NRGG
 
 topLevelADSFolder = r'C:\Data\ADS_Data'
 workingFolder = r'C:\Data\ADS_Testing'
-scratchWorkspace = r'C:\Data\ADS_Testing\ScratchSpace.gdb'
+scratchWorkspace = r'C:\Data\ADS_Testing\SkratchFiles.gdb'
 
 featureClasses = ADSFunctions.findAllFeatureClasses(topLevelADSFolder)
-featureClasses = featureClasses[-9:]
+# featureClasses = featureClasses[-9:]
 
 for featureClass in featureClasses:
     print('working on', os.path.basename(featureClass))
@@ -25,12 +25,6 @@ for featureClass in featureClasses:
     GDBName = 'ADS_SingleDCAValue_Tables_{}.gdb'.format(year)
 
     outPutGDB = ADSFunctions.makeNewGDBIfDoesntExist(workingFolder, GDBName)
-    allValuesOutput = arcpy.CreateFeatureDataset_management(
-        outPutGDB, 'allValueTables')[0]
-    mergedTableOutput = arcpy.CreateFeatureDataset_management(
-        outPutGDB, 'mergedTables')[0]
-    mergedFeatureClassOutput = arcpy.CreateFeatureDataset_management(
-        outPutGDB, 'mergedFeatureClasses')[0]
 
     arcpy.FeatureClassToFeatureClass_conversion(
         featureClass, scratchWorkspace, layerViewName)
@@ -46,10 +40,9 @@ for featureClass in featureClasses:
     for DCAValue in uniqueDCAValues:
         print('Working on', DCAValue)
         tableName = 'ADS_Expanded_{}_{}'.format(DCAValue, year)
-        featureClassName = os.path.join(
-            mergedFeatureClassOutput, 'ADS_{}_{}'.format(DCAValue, year))
+        featureClassName = 'ADS_{}_{}'.format(DCAValue, year)
 
-        ADSFunctions.makeEmptyADSTable(tableName, allValuesOutput)
+        ADSFunctions.makeEmptyADSTable(tableName, outPutGDB)
 
         everyDCARecord = ADSFunctions.getEveryRecordForSingleDCAValue(
             layerViewName, DCAValue, scratchWorkspace)
@@ -58,13 +51,13 @@ for featureClass in featureClasses:
             tableName, everyDCARecord)
 
         mergedTableName = ADSFunctions.mergeDuplicatesNoHost(
-            tableName, mergedTableOutput)
+            tableName, outPutGDB)
         ids = ADSFunctions.returnAllValuesFromField(
             mergedTableName, 'ORIGINAL_ID')
         ids = NRGG.listStringJoiner(ids)
         ADSFunctions.selectPolygonsFromOriginalData(
             layerViewName, ids,
-            featureClassName, mergedFeatureClassOutput)
+            featureClassName, outPutGDB)
         ADSFunctions.deleteUneededFields(featureClassName, ['ADS_OBJECTID'])
         arcpy.JoinField_management(
             featureClassName, 'ADS_OBJECTID', mergedTableName,
