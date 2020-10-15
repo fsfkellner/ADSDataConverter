@@ -1,6 +1,10 @@
 import arcpy
 import os
 from collections import Counter
+from copy import deepcopy
+import sys
+sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script')
+from NRGG import listStringJoiner
 
 
 def findDigits(stringText):
@@ -102,17 +106,17 @@ def convertNonDCAValuesToNull(inputTable, DCAValue):
     set to null values as well.
     '''
     for number in range(1, 4):
-            fields = [
-                'DCA{}'.format(number),
-                'TPA{}'.format(number),
-                'HOST{}'.format(number)]
-            cursor = arcpy.da.UpdateCursor(inputTable, fields)
-            for row in cursor:
-                if row[0] != DCAValue and row[0] != 99999:
-                    row[0] = 99999
-                    row[1] = -1
-                    row[2] = -1
-                cursor.updateRow(row)
+        fields = [
+            'DCA{}'.format(number),
+            'TPA{}'.format(number),
+            'HOST{}'.format(number)]
+        cursor = arcpy.da.UpdateCursor(inputTable, fields)
+        for row in cursor:
+            if row[0] != DCAValue and row[0] != 99999:
+                row[0] = 99999
+                row[1] = -1
+                row[2] = -1
+            cursor.updateRow(row)
 
 
 def getEveryRecordForSingleDCAValue(featureClass, DCAValue, scratchWorkspace):
@@ -279,7 +283,109 @@ def mergeDuplicatesNoHost(tableName, workspace):
         arcpy.TableToTable_conversion(tableName, workspace, mergedTableName)
     return mergedTableName
 
-# def getADSDCACodes(excelFile):
-#     codes = pd.read_excel(excelFile)
-#     codes = codes['Code'].tolist()
-#     return codes
+
+def computeSeverityWeightedAcres(
+        featureClass, SeverityMidPointField, AcresField, SWAField):
+    fields = [SeverityMidPointField, AcresField, SWAField]
+    cursor = arcpy.da.UpdateCursor(featureClass, fields)
+    for row in cursor:
+        row[2] = float((float(row[0])/65.0) * float(row[1]))
+        cursor.updateRow(row)
+
+
+def getDecadeFeatureClasses(listOfFeatureClasses, startYear, endYear):
+    decadeFilteredFeatureClasses = [
+        featureClass for featureClass in listOfFeatureClasses
+        if int(featureClass[-4:]) in range(startYear, endYear)]
+
+    decadeFilteredFeatureClasses.sort()  
+    return decadeFilteredFeatureClasses
+
+
+def getDCAValuesFromFiles(listofFeatureClasses):
+    allDCAValues = set()
+    for featureClass in listofFeatureClasses:
+        DCAValue = [character for character
+                    in os.path.basename(featureClass[:-5])
+                    if character.isdigit()]
+
+        DCAValue = listStringJoiner(DCAValue, '')
+        allDCAValues.add(int(DCAValue))
+
+    allDCAValues = list(allDCAValues)
+    allDCAValues.sort()
+    return allDCAValues
+
+
+def featuresInDecadeSingleDCAValue(listofFeatureClasses, inputDCAValue):
+    DCAFilteredFeatureClasses = []
+    for featureClass in listofFeatureClasses:
+        DCAValue = [character for character
+                    in os.path.basename(featureClass[:-5])
+                    if character.isdigit()]
+
+        DCAValue = listStringJoiner(DCAValue, '')
+        DCAValue = int(DCAValue)
+        if DCAValue == inputDCAValue:
+            DCAFilteredFeatureClasses.append(featureClass)
+
+    DCAFilteredFeatureClasses.sort()
+    return DCAFilteredFeatureClasses
+
+
+def getYearFields(featureClass):
+    yearFields = [
+        field.name for field in arcpy.ListFields(featureClass)
+        if 'YEAR' in field.name]
+    return yearFields
+
+
+def getTPAFields(featureClass):
+    TPAFields = [
+        field.name for field in arcpy.ListFields(featureClass)
+        if 'TPA' in field.name]
+    return TPAFields
+
+
+def computeTotalYears(featureClass, yearFields):
+    cursor = arcpy.da.UpdateCursor(featureClass, yearFields)
+    for row in cursor:
+        yearValues = deepcopy(row[:-1])
+        while None in yearValues:
+            yearValues.remove(None)
+        row[-1] = sum(yearValues)
+        cursor.updateRow(row)
+
+
+def computeTotalTPA(featureClass, TPAFields):
+    cursor = arcpy.da.UpdateCursor(featureClass, TPAFields)
+    for row in cursor:
+        TPAValues = deepcopy(row[:-1])
+        while None in TPAValues:
+            TPAValues.remove(None)
+        row[-1] = sum(TPAValues)
+        cursor.updateRow(row)
+
+
+def computeSeverityMidpoint(featureClass, TPAField, MidPointField):
+    cursor = arcpy.da.UpdateCursor(featureClass, [TPAField, MidPointField])
+    for row in cursor:
+        if row[0] == 0:
+            row[1] = 0
+        elif row[0] > 0 and row[0] <= 10:
+            row[1] = 5
+        elif row[0] > 10 and row[0] <= 30:
+            row[1] = 20
+        elif row[0] > 30:
+            row[1] = 65
+        cursor.updateRow(row)
+
+
+def setNegativeTPAToZero(featureClass, TPAField):
+    cursor = arcpy.da.UpdateCursor(featureClass, TPAField)
+    for row in cursor:
+        if row[0] == -1:
+            row[0] = 1
+        elif row[0] < 0 and row[0] != -1:
+            row[0] = row[0] * -1
+        cursor.updateRow(row)
