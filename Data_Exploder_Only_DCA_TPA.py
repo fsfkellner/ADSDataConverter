@@ -14,18 +14,18 @@ import NRGG
 # when putting in file paths in Python best practice is to start with a r and enclose path in "" or ''
 # Exampe r'C:\Path\To\Data'
 
-topLevelADSFolder = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\R01\ADS\Archived\Yearly'
+topLevelADSFolder = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\R01\ADS\Archived\Yearly\WithoutFNF'
 # a folder where output GDBs will be written to
 workingFolder = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\ADS_RS_2020'
 # Create an empty GDB and provide a path to this 
 scratchWorkspace = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\WorkingFolder\LastTemp.gdb'
 #############################################
 
-featureClasses = ADSFunctions.findAllFeatureClasses(topLevelADSFolder)
+featureClasses = ADSFunctions.findAllFeatureClasses(
+    topLevelADSFolder, 'Damage')
 ##### may need to experiement with the values in this next line to adjust what files analysis are calculated on
-featureClasses = featureClasses[1:-5] 
+#featureClasses = featureClasses[1:-5] 
 
-featureClasses = [r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\R01\ADS\Archived\Yearly\WithFNF\1999\R1ADS1999.gdb\R1ADS1999Damage']
 
 ############## execution code, no need to change any of this code #################################
 for featureClass in featureClasses:
@@ -42,11 +42,10 @@ for featureClass in featureClasses:
         featureClass, scratchWorkspace, layerViewName)
 
     ADSFunctions.setDamageToZero(layerViewName)
-    #uniqueDCAValues = ADSFunctions.getAllUniqueDCAValues(
-    #    layerViewName)
-    #uniqueDCAValues = [int(DCAValue) for DCAValue in uniqueDCAValues]
-    uniqueDCAValues = [11006]
-    #uniqueDCAValues.remove(11006)
+    uniqueDCAValues = ADSFunctions.getAllUniqueDCAValues(
+        layerViewName)
+
+    uniqueDCAValues = [int(DCAValue) for DCAValue in uniqueDCAValues]
 
     ADSFunctions.makeCopyOfOriginalOBJECTID(layerViewName)
 

@@ -153,7 +153,7 @@ def getEveryRecordForSingleDCAValue(featureClass, DCAValue, scratchWorkspace):
     return DCADict
 
 
-def findAllFeatureClasses(folder):
+def findAllFeatureClasses(folder, searchWord):
     '''Returns a list of all the feature classes
     that are within and the provided folder and any
     addtionaly subfolders
@@ -163,7 +163,7 @@ def findAllFeatureClasses(folder):
 
     for dirpath, dirnames, filenames in walk:
         for filename in filenames:
-            if 'Damage' in os.path.join(dirpath, filename):
+            if searchWord in os.path.join(dirpath, filename):
                 featureClasses.append(os.path.join(dirpath, filename))
     return featureClasses
 
@@ -389,3 +389,25 @@ def setNegativeTPAToZero(featureClass, TPAField):
         elif row[0] < 0 and row[0] != -1:
             row[0] = row[0] * -1
         cursor.updateRow(row)
+
+
+def populateHOSTCODEWithMostCommon(featureClass):
+    hostFields = [field.name for field in arcpy.ListFields(featureClass) if 'HOST' in field.name]
+    hostFields.remove('HOST_CODE')
+    hostFields.append('HOST_CODE')
+    cursor = arcpy.da.UpdateCursor(featureClass, hostFields)
+    for row in cursor:
+        values = row[:]
+        while None in values:
+            values.remove(None)
+        while 0 in values:
+            values.remove(0)
+        while -1 in values:
+            values.remove(-1)
+        if values:
+            counts = Counter(values)
+            mostCommonHost = counts.most_common()[0][0]
+            row[-1] = mostCommonHost
+            cursor.updateRow(row)
+        else:
+            row[-1] = None
