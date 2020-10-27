@@ -3,7 +3,8 @@ import os
 from collections import Counter
 from copy import deepcopy
 import sys
-sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script')
+sys.path.append(r'C:\Data')
+
 from NRGG import listStringJoiner
 
 
@@ -41,6 +42,7 @@ def makeEmptyADSTable(tableName, outputWorkspace):
     arcpy.AddField_management(tableName, 'TPA', 'FLOAT')
     arcpy.AddField_management(tableName, 'DCA_CODE', 'LONG')
     arcpy.AddField_management(tableName, 'HOST', 'SHORT')
+    arcpy.AddField_management(tableName, 'DMG_TYPE', 'SHORT')
     arcpy.AddField_management(tableName, 'ACRES', 'FLOAT')
 
 
@@ -109,13 +111,16 @@ def convertNonDCAValuesToNull(inputTable, DCAValue):
         fields = [
             'DCA{}'.format(number),
             'TPA{}'.format(number),
-            'HOST{}'.format(number)]
+            'HOST{}'.format(number),
+            'DMG_TYPE{}'.format(number)
+            ]
         cursor = arcpy.da.UpdateCursor(inputTable, fields)
         for row in cursor:
             if row[0] != DCAValue and row[0] != 99999:
                 row[0] = 99999
                 row[1] = -1
                 row[2] = -1
+                row[3] = -1
             cursor.updateRow(row)
 
 
@@ -141,14 +146,15 @@ def getEveryRecordForSingleDCAValue(featureClass, DCAValue, scratchWorkspace):
             'TPA{}'.format(number),
             'DCA{}'.format(number),
             'HOST{}'.format(number),
+            'DMG_TYPE{}'.format(number),
             'ACRES']
         cursor = arcpy.da.SearchCursor(outputTableName, fields)
         for row in cursor:
             if row[0] not in DCADict.keys() and row[2] == DCAValue:
                 DCADict[row[0]] = []
-                DCADict[row[0]].append([row[1], row[2], row[3], row[4]])
+                DCADict[row[0]].append([row[1], row[2], row[3], row[4], row[5]])
             elif row[0] in DCADict.keys() and row[2] == DCAValue:
-                DCADict[row[0]].append([row[1], row[2], row[3], row[4]])
+                DCADict[row[0]].append([row[1], row[2], row[3], row[4], row[5]])
 
     return DCADict
 
@@ -217,7 +223,7 @@ def updateTablewithEveryDCARecord(tableName, everyDCARecordDict):
     '''
     cursor = arcpy.da.InsertCursor(
             tableName,
-            ['ORIGINAL_ID', 'TPA', 'DCA_CODE', 'HOST', 'ACRES', 'DUPLICATE'])
+            ['ORIGINAL_ID', 'TPA', 'DCA_CODE', 'HOST', 'DMG_TYPE', 'ACRES', 'DUPLICATE'])
 
     for key in everyDCARecordDict:
         if everyDCARecordDict[key]:

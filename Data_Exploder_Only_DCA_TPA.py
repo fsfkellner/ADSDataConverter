@@ -2,10 +2,13 @@
 import os
 import arcpy
 import sys
-sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script\ADSFunctions')
+#sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script\ADSFunctions')
+sys.path.append(r'C:\Data\ADSDataConverter')
+
 import ADSFunctions
 
-sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script')
+#sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script')
+sys.path.append(r'C:\Data\NRGG')
 import NRGG
 ###########################################################
 
@@ -14,11 +17,11 @@ import NRGG
 # when putting in file paths in Python best practice is to start with a r and enclose path in "" or ''
 # Exampe r'C:\Path\To\Data'
 
-topLevelADSFolder = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\R01\ADS\Archived\Yearly\WithoutFNF'
+topLevelADSFolder = r'C:\Data\ADS_Data'
 # a folder where output GDBs will be written to
-workingFolder = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\ADS_RS_2020'
+workingFolder = r'C:\Data\ADS_Data'
 # Create an empty GDB and provide a path to this 
-scratchWorkspace = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\WorkingFolder\LastTemp.gdb'
+scratchWorkspace = r'C:\Data\ADS_Data\Skratch.gdb'
 #############################################
 
 featureClasses = ADSFunctions.findAllFeatureClasses(
