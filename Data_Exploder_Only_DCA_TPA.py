@@ -2,14 +2,12 @@
 import os
 import arcpy
 import sys
-#sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script\ADSFunctions')
-sys.path.append(r'C:\Data\ADSDataConverter')
 
-import ADSFunctions
-
-#sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script')
-sys.path.append(r'C:\Data\NRGG')
+sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script')
 import NRGG
+
+sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script\ADSFunctions')
+import ADSFunctions
 ###########################################################
 
 ################## variables that will need to be set by end user #################################
@@ -17,18 +15,15 @@ import NRGG
 # when putting in file paths in Python best practice is to start with a r and enclose path in "" or ''
 # Exampe r'C:\Path\To\Data'
 
-topLevelADSFolder = r'C:\Data\ADS_Data'
+topLevelADSFolder = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\R4_ADS_Data'
 # a folder where output GDBs will be written to
-workingFolder = r'C:\Data\ADS_Data'
+workingFolder = r'your file path to a folder with write access here'
 # Create an empty GDB and provide a path to this 
-scratchWorkspace = r'C:\Data\ADS_Data\Skratch.gdb'
+scratchWorkspace = r'your file path to gdb here'
 #############################################
 
 featureClasses = ADSFunctions.findAllFeatureClasses(
     topLevelADSFolder, 'Damage')
-##### may need to experiement with the values in this next line to adjust what files analysis are calculated on
-#featureClasses = featureClasses[1:-5] 
-
 
 ############## execution code, no need to change any of this code #################################
 for featureClass in featureClasses:
@@ -44,10 +39,7 @@ for featureClass in featureClasses:
     arcpy.FeatureClassToFeatureClass_conversion(
         featureClass, scratchWorkspace, layerViewName)
 
-    ADSFunctions.setDamageToZero(layerViewName)
-    uniqueDCAValues = ADSFunctions.getAllUniqueDCAValues(
-        layerViewName)
-
+    uniqueDCAValues = ADSFunctions.getAllUniqueDCAValues(layerViewName)
     uniqueDCAValues = [int(DCAValue) for DCAValue in uniqueDCAValues]
 
     ADSFunctions.makeCopyOfOriginalOBJECTID(layerViewName)
@@ -64,16 +56,3 @@ for featureClass in featureClasses:
 
         ADSFunctions.updateTablewithEveryDCARecord(
             tableName, everyDCARecord)
-
-        mergedTableName = ADSFunctions.mergeDuplicatesNoHost(
-            tableName, outPutGDB)
-        ids = ADSFunctions.returnAllValuesFromField(
-            mergedTableName, 'ORIGINAL_ID')
-        ids = NRGG.listStringJoiner(ids)
-        ADSFunctions.selectPolygonsFromOriginalData(
-            layerViewName, ids,
-            featureClassName, outPutGDB)
-        ADSFunctions.deleteUneededFields(featureClassName, ['ADS_OBJECTID'])
-        arcpy.JoinField_management(
-            featureClassName, 'ADS_OBJECTID', mergedTableName,
-            'ORIGINAL_ID', 'ORIGINAL_ID;DUPLICATE;TPA;DCA_CODE;HOST;ACRES')

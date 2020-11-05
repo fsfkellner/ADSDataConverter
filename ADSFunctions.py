@@ -3,7 +3,7 @@ import os
 from collections import Counter
 from copy import deepcopy
 import sys
-sys.path.append(r'C:\Data')
+sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script')
 
 from NRGG import listStringJoiner
 
@@ -55,7 +55,7 @@ def makeNewGDBIfDoesntExist(folder, GDBName):
         pass
     else:
         arcpy.CreateFileGDB_management(folder, GDBName)
-
+    GDBName = GDBName + '.gdb'
     GDBPath = os.path.join(folder, GDBName)
     return GDBPath
 
@@ -181,7 +181,11 @@ def getAllUniqueDCAValues(featureClass):
     '''
     cursor = arcpy.da.SearchCursor(featureClass, ['DCA1', 'DCA2', 'DCA3'])
     uniqueDCAValues = list(
-        set(row for rows in cursor for row in rows if row != 99999))
+        set(row for rows in cursor for row in rows))
+    if 99999 in uniqueDCAValues:
+        uniqueDCAValues.remove(99999)
+    if -1 in uniqueDCAValues:
+        uniqueDCAValues.remove(-1)
     uniqueDCAValues.sort()
     return uniqueDCAValues
 
