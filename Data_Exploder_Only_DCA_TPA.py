@@ -15,15 +15,18 @@ import ADSFunctions
 # when putting in file paths in Python best practice is to start with a r and enclose path in "" or ''
 # Exampe r'C:\Path\To\Data'
 
-topLevelADSFolder = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\R4_ADS_Data'
+topLevelADSFolder = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\WorkingFolder\Merge_2015.gdb'
 # a folder where output GDBs will be written to
-workingFolder = r'your file path to a folder with write access here'
+workingFolder = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\R1_Expanded_ADS_Tables'
 # Create an empty GDB and provide a path to this 
-scratchWorkspace = r'your file path to gdb here'
+scratchWorkspace = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\WorkingFolder\NewTemp.gdb'
+region = 'R1'
 #############################################
 
 featureClasses = ADSFunctions.findAllFeatureClasses(
     topLevelADSFolder, 'Damage')
+
+featureClasses = featureClasses[-13:-12]
 
 ############## execution code, no need to change any of this code #################################
 for featureClass in featureClasses:
@@ -32,12 +35,12 @@ for featureClass in featureClasses:
     year = ADSFunctions.findDigits(layerViewName)[1:]
     year = NRGG.listStringJoiner(year, '')
 
-    GDBName = 'ADS_SingleDCAValue_Tables_{}.gdb'.format(year)
+    GDBName = '{}ADS_SingleDCAValue_Tables_{}.gdb'.format(region, year)
 
     outPutGDB = ADSFunctions.makeNewGDBIfDoesntExist(workingFolder, GDBName)
 
     arcpy.FeatureClassToFeatureClass_conversion(
-        featureClass, scratchWorkspace, layerViewName)
+        featureClass, outPutGDB, layerViewName)
 
     uniqueDCAValues = ADSFunctions.getAllUniqueDCAValues(layerViewName)
     uniqueDCAValues = [int(DCAValue) for DCAValue in uniqueDCAValues]

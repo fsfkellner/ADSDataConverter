@@ -52,11 +52,10 @@ def makeNewGDBIfDoesntExist(folder, GDBName):
     of the GDB
     '''
     if arcpy.Exists(os.path.join(folder, GDBName)):
-        pass
+        GDBPath = os.path.join(folder, GDBName)
     else:
         arcpy.CreateFileGDB_management(folder, GDBName)
-    GDBName = GDBName + '.gdb'
-    GDBPath = os.path.join(folder, GDBName)
+        GDBPath = os.path.join(folder, GDBName)
     return GDBPath
 
 
@@ -67,6 +66,32 @@ def makeCopyOfOriginalOBJECTID(featurClass):
     arcpy.AddField_management(featurClass, "ADS_OBJECTID", 'LONG')
     arcpy.CalculateField_management(
         featurClass, 'ADS_OBJECTID', '!OBJECTID!', 'PYTHON', '#')
+
+
+def makeDamageCodeWhereStatement(damageCodesList):
+    '''A function to write the where statement for select expanded ADS
+    from the expanded single DCA table based off of damage code type
+    '''
+    if len(damageCodesList) == 1:
+        whereStatement = 'DMG_TYPE = {}'.format(damageCodesList[0])
+    else:
+        whereStatement = 'DMG_TYPE IN {}'.format(tuple(damageCodesList))
+    return whereStatement
+
+
+def checkForDamageCodes(featureClass, whereStatement):
+    '''This function takes a SQL where clause based off the ADS
+    damage type field and checks to makes sure that those value exist in
+    and expande singlge DCA table.
+    '''
+    arcpy.SelectLayerByAttribute_management(featureClass, "CLEAR_SELECTION")
+    arcpy.SelectLayerByAttribute_management(featureClass, "NEW_SELECTION", whereStatement)
+    count = int(arcpy.GetCount_management(featureClass)[0])
+    arcpy.SelectLayerByAttribute_management(featureClass, "CLEAR_SELECTION")
+    if count > 0:
+        return True
+    else:
+        return False
 
 
 def setDamageToZero(featureClass):
@@ -174,6 +199,21 @@ def findAllFeatureClasses(folder, searchWord):
     return featureClasses
 
 
+def findAllTables(folder, searchWord):
+    '''Returns a list of all the feature classes
+    that are within and the provided folder and any
+    addtionaly subfolders
+    '''
+    tables = []
+    walk = arcpy.da.Walk(folder, datatype="Table")
+
+    for dirpath, dirnames, filenames in walk:
+        for filename in filenames:
+            if searchWord in os.path.join(dirpath, filename):
+                tables.append(os.path.join(dirpath, filename))
+    return tables
+
+
 def getAllUniqueDCAValues(featureClass):
     '''Returns a list of all the unique DCA values
     from the 3 fields in the Historic ADS data
@@ -191,6 +231,9 @@ def getAllUniqueDCAValues(featureClass):
 
 
 def returnAllValuesFromField(featureClass, field):
+    '''Taks an input field and returns a sorted list off 
+    all the values in a field from an table or feature class attribute table
+    '''
     allValues = [row[0] for row in arcpy.da.SearchCursor(featureClass, field)]
     allValues.sort()
     return allValues
@@ -198,10 +241,15 @@ def returnAllValuesFromField(featureClass, field):
 
 def selectPolygonsFromOriginalData(
         featureClass, stringListOfIDs, outputName, workspace):
+    '''Using values from the Unique_ID field performs
+    an ESRI select analysis. Where the values are selected
+    and those data are exported as a new file.
+    '''
     outPutPath = os.path.join(workspace, outputName)
     arcpy.Select_analysis(
         featureClass,
-        outPutPath, 'ADS_OBJECTID IN ({})'.format(stringListOfIDs))
+        outPutPath,
+        'ADS_OBJECTID IN ({})'.format(stringListOfIDs))
 
 
 def returnDuplicates(yourList):
@@ -275,6 +323,8 @@ def mergeDuplicatesNoHost(tableName, workspace):
 
     if duplicatDict:
         arcpy.TableToTable_conversion(tableName, workspace, mergedTableName)
+        arcpy.MakeTableView_management(
+            os.path.join(workspace, mergedTableName), mergedTableName)
 
         cursor = arcpy.da.UpdateCursor(
             mergedTableName, ['ORIGINAL_ID', 'TPA'], 'DUPLICATE IS NULL')
@@ -296,6 +346,7 @@ def mergeDuplicatesNoHost(tableName, workspace):
 
 def computeSeverityWeightedAcres(
         featureClass, SeverityMidPointField, AcresField, SWAField):
+    '''Compute severity weighted arces in a ADS feature class or table.'''
     fields = [SeverityMidPointField, AcresField, SWAField]
     cursor = arcpy.da.UpdateCursor(featureClass, fields)
     for row in cursor:
@@ -304,6 +355,9 @@ def computeSeverityWeightedAcres(
 
 
 def getDecadeFeatureClasses(listOfFeatureClasses, startYear, endYear):
+    '''Takes a list of feature classes and returns only those that fall within
+    the start and end year.
+    '''
     decadeFilteredFeatureClasses = [
         featureClass for featureClass in listOfFeatureClasses
         if int(featureClass[-4:]) in range(startYear, endYear)]
@@ -312,7 +366,27 @@ def getDecadeFeatureClasses(listOfFeatureClasses, startYear, endYear):
     return decadeFilteredFeatureClasses
 
 
+def getDecadeCopyFeatureClasses(listOfFeatureClasses, startYear, endYear):
+    '''Takes a list of feature classes and returns only those that fall within
+    the start and end year.
+    '''
+    decadeFilteredFeatureClasses = []
+    for featureClass in listOfFeatureClasses:
+        featureClassBasename = os.path.basename(featureClass)
+        year = findDigits(featureClassBasename)[1:]
+        year = int(listStringJoiner(year, ''))
+
+        if year in range(startYear, endYear):
+            decadeFilteredFeatureClasses.append(featureClass)
+
+    decadeFilteredFeatureClasses.sort()  
+    return decadeFilteredFeatureClasses
+
+
 def getDCAValuesFromFiles(listofFeatureClasses):
+    '''Takes a list feature classes and returns DCA values
+    that are found in the naming convention of the file.
+    '''
     allDCAValues = set()
     for featureClass in listofFeatureClasses:
         DCAValue = [character for character
@@ -331,7 +405,7 @@ def featuresInDecadeSingleDCAValue(listofFeatureClasses, inputDCAValue):
     DCAFilteredFeatureClasses = []
     for featureClass in listofFeatureClasses:
         DCAValue = [character for character
-                    in os.path.basename(featureClass[:-5])
+                    in os.path.basename(featureClass)[2:-5]
                     if character.isdigit()]
 
         DCAValue = listStringJoiner(DCAValue, '')
