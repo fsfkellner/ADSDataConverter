@@ -424,10 +424,10 @@ def getYearFields(featureClass):
     return yearFields
 
 
-def getTPAFields(featureClass):
+def getSpecificFields(featureClass, textValue):
     TPAFields = [
         field.name for field in arcpy.ListFields(featureClass)
-        if 'TPA' in field.name]
+        if textValue in field.name]
     return TPAFields
 
 
@@ -448,6 +448,16 @@ def computeTotalTPA(featureClass, TPAFields):
         while None in TPAValues:
             TPAValues.remove(None)
         row[-1] = sum(TPAValues)
+        cursor.updateRow(row)
+
+
+def computeUnionMidpoint(featureClass, MidPointFields):
+    cursor = arcpy.da.UpdateCursor(featureClass, MidPointFields)
+    for row in cursor:
+        midPointValues = deepcopy(row[:-1])
+        while None in midPointValues:
+            midPointValues.remove(None)
+        row[-1] = sum(midPointValues)
         cursor.updateRow(row)
 
 
