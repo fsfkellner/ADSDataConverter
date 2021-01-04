@@ -121,7 +121,7 @@ def uniqueValuesFromFeatureClassField(featureClass, field):
     '''Returns the unique values from a
     fields in a feature class
     '''
-    with arcpy.da.SearchCursor as cursor:
+    with arcpy.da.SearchCursor(featureClass, field) as cursor:
         uniqueValues = list(set(row[0] for row in cursor))
     return uniqueValues
 
