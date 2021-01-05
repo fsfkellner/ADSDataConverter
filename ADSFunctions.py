@@ -444,7 +444,7 @@ def getSpecificFields(featureClass, textValue):
 
 
 def sumMidPoints(featureClass, fieldsList):
-    cursor = arcpy.da.UpdateCursor(featurClass, fieldsList)
+    cursor = arcpy.da.UpdateCursor(featureClass, fieldsList)
     for row in cursor:
         midPointValues = deepcopy(row[:-1])
         while None in midPointValues:
