@@ -4,10 +4,10 @@ import os
 sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script\ADSFunctions')
 import ADSFunctions
 
-featureClass = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\R1_208_ADS_Data\R1ADS2018.gdb\R1ADS2018Damage'
-year= 2018
+featureClass = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\R01\ADS\Archived\Yearly\WithFNF\2019\R01ADS2019.gdb\R01ADS2019Damage'
+year= 2019
 
-outputGDB = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\R1_Expanded_ADS_Tables\R1ADS_SingleDCAValue_Tables_2018.gdb'
+outputGDB = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\R1_Expanded_ADS_Tables\R1ADS_SingleDCAValue_Tables_2019.gdb'
 copyName = '{}_copy'.format(os.path.basename(featureClass))
 arcpy.FeatureClassToFeatureClass_conversion(featureClass, outputGDB, copyName)
 
@@ -29,6 +29,11 @@ for DCAValue in DCAValues:
     arcpy.AddField_management(selectTableName, 'DUPLICATE', 'SHORT')
 
     arcpy.DeleteField_management(selectTableName, 'HOST')
+    
+    arcpy.DeleteField_management(selectTableName, 'MidPoint')
+    arcpy.AddField_management(selectTableName, 'MidPoint', 'SHORT')
+    ADSFunctions.computeADSMidPoint(selectTableName, 'Severity_Class', 'MidPoint')
+
     arcpy.AddField_management(selectTableName, 'HOST', 'SHORT')
     arcpy.CalculateField_management(selectTableName, 'HOST', '!HOST_CODE!', "PYTHON_9.3")
 

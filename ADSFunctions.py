@@ -184,6 +184,18 @@ def getEveryRecordForSingleDCAValue(featureClass, DCAValue, scratchWorkspace):
     return DCADict
 
 
+def computeADSMidPoint(featureClass, codeField, updateField):
+    cursor = arcpy.da.UpdateCursor(featureClass, [codeField, updateField])
+    for row in cursor:
+        if row[0] == 'LOW':
+            row[1] = 5
+        elif row[0] == 'MODERATE':
+            row[1] = 20
+        elif row[0] == 'HIGH':
+            row[1] = 65
+        cursor.updateRow(row)
+
+
 def findAllFeatureClasses(folder, searchWord):
     '''Returns a list of all the feature classes
     that are within and the provided folder and any
@@ -429,6 +441,16 @@ def getSpecificFields(featureClass, textValue):
         field.name for field in arcpy.ListFields(featureClass)
         if textValue in field.name]
     return TPAFields
+
+
+def sumMidPoints(featureClass, fieldsList):
+    cursor = arcpy.da.UpdateCursor(featurClass, fieldsList)
+    for row in cursor:
+        midPointValues = deepcopy(row[:-1])
+        while None in midPointValues:
+            midPointValues.remove(None)
+        row[-1] = sum(midPointValues)
+        cursor.updateRow(row)
 
 
 def computeTotalYears(featureClass, yearFields):
