@@ -4,10 +4,10 @@ import os
 sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script\ADSFunctions')
 import ADSFunctions
 
-featureClass = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\R01\ADS\Archived\Yearly\WithFNF\2019\R01ADS2019.gdb\R01ADS2019Damage'
-year= 2019
+featureClass = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\R4_ADS_Data\2017\R4ADS2017.gdb\R4ADS2017Damage'
+year= 2017
 
-outputGDB = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\R1_Expanded_ADS_Tables\R1ADS_SingleDCAValue_Tables_2019.gdb'
+outputGDB = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\R4_Expanded_ADS_Tables\R4ADS_SingleDCAValue_Tables_2017.gdb'
 copyName = '{}_copy'.format(os.path.basename(featureClass))
 arcpy.FeatureClassToFeatureClass_conversion(featureClass, outputGDB, copyName)
 
@@ -23,8 +23,8 @@ for DCAValue in DCAValues:
     arcpy.AddField_management(selectTableName, 'ORIGINAL_ID', 'LONG')
     arcpy.CalculateField_management(selectTableName, 'ORIGINAL_ID', '!ADS_OBJECTID!', 'PYTHON_9.3')
    
-    #arcpy.AddField_management(selectTableName, 'ACRES_FINAL', 'FLOAT')
-    #arcpy.CalculateField_management(selectTableName, 'ACRES_FINAL', '!Acres!', "PYTHON_9.3")
+    arcpy.AddField_management(selectTableName, 'ACRES_FINAL', 'FLOAT')
+    arcpy.CalculateField_management(selectTableName, 'ACRES_FINAL', '!ACRES!', "PYTHON_9.3")
 
     arcpy.AddField_management(selectTableName, 'DUPLICATE', 'SHORT')
 
