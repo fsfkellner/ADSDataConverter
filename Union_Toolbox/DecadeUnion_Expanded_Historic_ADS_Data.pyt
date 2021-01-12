@@ -159,8 +159,8 @@ class UnionHistoricADSData(object):
                 arcpy.Union_analysis(unionFiles, unionName)
                 arcpy.AddField_management(unionName, 'TPATotal', 'DOUBLE')
                 arcpy.AddField_management(unionName, 'YEARTotal', 'SHORT')
-                yearFields = ADSFunctions.getYearFields(unionName)
-                TPAFields = ADSFunctions.getTPAFields(unionName)
+                yearFields = ADSFunctions.listFields(unionName, 'YEAR')
+                TPAFields = ADSFunctions.listFields(unionName, 'TPA')
                 ADSFunctions.sumValuesAcrossSimilarFields(unionName, yearFields)
                 ADSFunctions.sumValuesAcrossSimilarFields(unionName, TPAFields)
                 arcpy.AddField_management(unionName, 'Severity_MidPoint', 'SHORT')
@@ -306,12 +306,10 @@ class CreateSingleDCAFeatureClasses(object):
         featureClasses = NRGG.findAllGeospatialFiles(
             topLevelADSFolder, 'Damage', fileType="FeatureClass")
 
-        #decadeFilteredFeatureClasses = ADSFunctions.getDecadeCopyFeatureClasses(
-        #    featureClasses, startYear, endYear + 1) # uncomment and delete function below if not working properly 
+        decadeFilteredFeatureClasses = ADSFunctions.getDecadeCopyFeatureClasses(
+            featureClasses, startYear, endYear + 1) # uncomment and delete function below if not working properly 
         
-        decadeFilteredFeatureClasses = ADSFunctions.getDecadeFeatureClasses(
-            featureClasses, startYear, endYear + 1)
-
+        
         for featureClass in decadeFilteredFeatureClasses:
             layerViewName = '{}_View'.format(
                 os.path.basename(featureClass.replace('_Copy', '')))
@@ -520,7 +518,7 @@ class UnionHistoricCurrentADS(object):
                 arcpy.Union_analysis(unionFiles, unionName)
                 arcpy.AddField_management(unionName, 'TPATotal', 'DOUBLE')
                 arcpy.AddField_management(unionName, 'YEARTotal', 'SHORT')
-                yearFields = ADSFunctions.getYearFields(unionName)
+                yearFields = ADSFunctions.listFields(unionName, 'YEAR')
                 TPAFields = NRGG.listFields(unionName, 'TPA')
 
                 arcpy.AddField_management(unionName, 'TPATotal', 'DOUBLE')
