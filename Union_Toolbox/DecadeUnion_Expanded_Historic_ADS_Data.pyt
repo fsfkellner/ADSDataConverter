@@ -161,8 +161,8 @@ class UnionHistoricADSData(object):
                 arcpy.AddField_management(unionName, 'YEARTotal', 'SHORT')
                 yearFields = ADSFunctions.getYearFields(unionName)
                 TPAFields = ADSFunctions.getTPAFields(unionName)
-                ADSFunctions.computeTotalYears(unionName, yearFields)
-                ADSFunctions.computeTotalTPA(unionName, TPAFields)
+                ADSFunctions.sumValuesAcrossSimilarFields(unionName, yearFields)
+                ADSFunctions.sumValuesAcrossSimilarFields(unionName, TPAFields)
                 arcpy.AddField_management(unionName, 'Severity_MidPoint', 'SHORT')
                 arcpy.AddField_management(unionName, "SeverityWeightedAcres", 'FLOAT')
                 arcpy.AddField_management(unionName, "Acres_Mapped", 'FLOAT')
@@ -306,7 +306,10 @@ class CreateSingleDCAFeatureClasses(object):
         featureClasses = NRGG.findAllGeospatialFiles(
             topLevelADSFolder, 'Damage', fileType="FeatureClass")
 
-        decadeFilteredFeatureClasses = ADSFunctions.getDecadeCopyFeatureClasses(
+        #decadeFilteredFeatureClasses = ADSFunctions.getDecadeCopyFeatureClasses(
+        #    featureClasses, startYear, endYear + 1) # uncomment and delete function below if not working properly 
+        
+        decadeFilteredFeatureClasses = ADSFunctions.getDecadeFeatureClasses(
             featureClasses, startYear, endYear + 1)
 
         for featureClass in decadeFilteredFeatureClasses:
@@ -525,10 +528,12 @@ class UnionHistoricCurrentADS(object):
 
                 midPointFields = NRGG.listFields(
                     unionName, 'MidPoint')
-                ADSFunctions.sumMidPoints(unionName, midPointFields)
+                ADSFunctions.sumValuesAcrossSimilarFields(unionName, midPointFields)
 
-                ADSFunctions.computeTotalYears(unionName, yearFields)
-                ADSFunctions.computeTotalTPA(unionName, TPAFields)
+                ADSFunctions.sumValuesAcrossSimilarFields(
+                    unionName, yearFields)
+                ADSFunctions.sumValuesAcrossSimilarFields(
+                    unionName, TPAFields)
                 arcpy.AddField_management(
                     unionName, 'Severity_MidPointTPA', 'SHORT')
                 arcpy.AddField_management(
@@ -548,12 +553,13 @@ class UnionHistoricCurrentADS(object):
                     unionName, "SeverityWeightedAcresTPA")
 
                 arcpy.AddField_management(
-                    unionName,"FinalSeverityWeightedAcres", 'FLOAT')
+                    unionName, "FinalSeverityWeightedAcres", 'FLOAT')
                 arcpy.AddField_management(
                     unionName, "TotalMidpoints", 'SHORT')
-                ADSFunctions.sumMidPoints(
-                    unionName, ["Severity_MidPointTPA",
-                        "MidPointSum", 
+                ADSFunctions.sumValuesAcrossSimilarFields(
+                    unionName, [
+                        "Severity_MidPointTPA",
+                        "MidPointSum",
                         "TotalMidpoints"]
                         )
                 arcpy.AddField_management(
@@ -572,7 +578,8 @@ class UnionHistoricCurrentADS(object):
                     unionName, outputGDBPath, finaldUnionName)
                 NRGG.deleteUneededFields(
                     finaldUnionName,
-                    ['TPATotal',
+                    [
+                        'TPATotal',
                         'YEARTotal',
                         'Severity_MidPoint',
                         'FinalSeverityWeightedAcres',

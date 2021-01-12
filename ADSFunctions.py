@@ -5,11 +5,15 @@ from copy import deepcopy
 import sys
 sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script')
 
-from NRGG import listStringJoiner
+from NRGG import(
+    listStringJoiner,
+    findDigits,
+    listFields
+)
 
 
 def makeEmptyADSTable(tableName, outputWorkspace):
-    '''Makes an empty table with the apporiate fields
+    '''Makes an empty table with the appopriate fields
     so historic ADS data can populated representing a 
     single record for each value found in DCA1, DCA2 and DCA3
     '''
@@ -23,39 +27,13 @@ def makeEmptyADSTable(tableName, outputWorkspace):
     arcpy.AddField_management(tableName, 'ACRES', 'FLOAT')
 
 
-def makeCopyOfOriginalOBJECTID(featurClass):
+def makeCopyOfOriginalOBJECTID(featureClass):
     '''Adds a new fields "ADS_OBJECTID" so that
     single DCA values can be traced back to the original data
     '''
-    arcpy.AddField_management(featurClass, "ADS_OBJECTID", 'LONG')
+    arcpy.AddField_management(featureClass, "ADS_OBJECTID", 'LONG')
     arcpy.CalculateField_management(
-        featurClass, 'ADS_OBJECTID', '!OBJECTID!', 'PYTHON', '#')
-
-
-def makeDamageCodeWhereStatement(damageCodesList):
-    '''A function to write the where statement for select expanded ADS
-    from the expanded single DCA table based off of damage code type
-    '''
-    if len(damageCodesList) == 1:
-        whereStatement = 'DMG_TYPE = {}'.format(damageCodesList[0])
-    else:
-        whereStatement = 'DMG_TYPE IN {}'.format(tuple(damageCodesList))
-    return whereStatement
-
-
-def checkForDamageCodes(featureClass, whereStatement):
-    '''This function takes a SQL where clause based off the ADS
-    damage type field and checks to makes sure that those value exist in
-    and expande singlge DCA table.
-    '''
-    arcpy.SelectLayerByAttribute_management(featureClass, "CLEAR_SELECTION")
-    arcpy.SelectLayerByAttribute_management(featureClass, "NEW_SELECTION", whereStatement)
-    count = int(arcpy.GetCount_management(featureClass)[0])
-    arcpy.SelectLayerByAttribute_management(featureClass, "CLEAR_SELECTION")
-    if count > 0:
-        return True
-    else:
-        return False
+        featureClass, 'ADS_OBJECTID', '!OBJECTID!', 'PYTHON', '#')
 
 
 def setDamageToZero(featureClass):
@@ -82,9 +60,9 @@ def setDamageToZero(featureClass):
 
 
 def convertNonDCAValuesToNull(inputTable, DCAValue):
-    '''Converts and values in DCA1, DCA2 or DCA3 that are not
-    equal to the input DCAValue. The TPA and HOST fields
-    associated with DCA1, DCA2 or DCA3 are
+    '''Converts all values in DCA1, DCA2 or DCA3 that are not
+    equal to the input DCAValue to NULL or their NULL equivalent.
+    The TPA and HOST fields associated with DCA1, DCA2 or DCA3 are
     set to null values as well.
     '''
     for number in range(1, 4):
@@ -140,6 +118,11 @@ def getEveryRecordForSingleDCAValue(featureClass, DCAValue, scratchWorkspace):
 
 
 def computeADSMidPoint(featureClass, codeField, updateField):
+    '''Takes codeField attribute column which contains the ADS
+    values of LOW, MODERATE and HIGH and computes and assigns
+    the serverity midpoint value to the input updateField
+    attribute column
+    '''
     cursor = arcpy.da.UpdateCursor(featureClass, [codeField, updateField])
     for row in cursor:
         if row[0] == 'LOW':
@@ -180,22 +163,6 @@ def selectPolygonsFromOriginalData(
         'ADS_OBJECTID IN ({})'.format(stringListOfIDs))
 
 
-def returnDuplicates(yourList):
-    '''Takes an input list and returns
-    a list of only the duplicate values
-    '''
-    notDuplicate = set()
-    isDuplicate = set()
-    notDuplicate_add = notDuplicate.add
-    isDuplicate_add = isDuplicate.add
-    for item in yourList:
-        if item in notDuplicate:
-            isDuplicate_add(item)
-        else:
-            notDuplicate_add(item)
-    return list(isDuplicate)
-
-
 def updateTablewithEveryDCARecord(tableName, everyDCARecordDict):
     '''Takes an empty table with appropriate fields added
     to it and updates so each unique DCA value
@@ -204,12 +171,12 @@ def updateTablewithEveryDCARecord(tableName, everyDCARecordDict):
     cursor = arcpy.da.InsertCursor(
             tableName,
             ['ORIGINAL_ID',
-            'TPA',
-            'DCA_CODE',
-            'HOST',
-            'DMG_TYPE',
-            'ACRES',
-            'DUPLICATE'])
+                'TPA',
+                'DCA_CODE',
+                'HOST',
+                'DMG_TYPE',
+                'ACRES',
+                'DUPLICATE'])
 
     for key in everyDCARecordDict:
         if everyDCARecordDict[key]:
@@ -233,54 +200,14 @@ def updateTablewithEveryDCARecord(tableName, everyDCARecordDict):
                         count += 1
 
 
-def mergeDuplicatesNoHost(tableName, workspace):
-    '''Takes the table of Expanded DCA values,
-    where every row represents a unique record
-    and combines the TPA for duplicates resulting from
-    the same DCA value but different HOST values
-    '''
-    mergedTableName = '{}_Merged'.format(tableName)
-    countOfIDs = Counter(returnAllValuesFromField(tableName, 'ORIGINAL_ID'))
-    if 2 in countOfIDs.values() or 3 in countOfIDs.values():
-        duplicatDict = {}
-        cursor = arcpy.da.SearchCursor(
-            tableName, ['ORIGINAL_ID', 'TPA'], 'DUPLICATE = 1')
-        for row in cursor:
-            if row[0] not in duplicatDict:
-                duplicatDict[row[0]] = row[1]
-            elif row[0] in duplicatDict:
-                duplicatDict[row[0]] = row[1] + duplicatDict[row[0]]
-
-    cursor = arcpy.da.SearchCursor(
-        tableName, ['ORIGINAL_ID', 'TPA'], 'DUPLICATE = 1')
-    duplicatDict = {row[0]: row[1] for row in cursor}
-
-    if duplicatDict:
-        arcpy.TableToTable_conversion(tableName, workspace, mergedTableName)
-        arcpy.MakeTableView_management(
-            os.path.join(workspace, mergedTableName), mergedTableName)
-
-        cursor = arcpy.da.UpdateCursor(
-            mergedTableName, ['ORIGINAL_ID', 'TPA'], 'DUPLICATE IS NULL')
-        for row in cursor:
-            if row[0] in duplicatDict.keys():
-                row[1] = row[1] + duplicatDict[row[0]]
-            cursor.updateRow(row)
-
-        arcpy.SelectLayerByAttribute_management(
-            mergedTableName, "NEW_SELECTION", 'DUPLICATE = 1')
-
-        arcpy.DeleteRows_management(mergedTableName)
-        arcpy.SelectLayerByAttribute_management(
-            mergedTableName, "CLEAR_SELECTION")
-    else:
-        arcpy.TableToTable_conversion(tableName, workspace, mergedTableName)
-    return mergedTableName
-
-
 def computeSeverityWeightedAcres(
         featureClass, SeverityMidPointField, AcresField, SWAField):
-    '''Compute severity weighted arces in a ADS feature class or table.'''
+    '''Compute severity weighted arces in an ADS feature class or table.
+    Uses the inputs SeverityMidPointField and AcresField to compute a new
+    value into input SWAField. The severity midPointField is divided by the
+    constant value of 65 in every instance to compute the value which the acres
+    will be multiplied by to compute severity weighted acres
+    '''
     fields = [SeverityMidPointField, AcresField, SWAField]
     cursor = arcpy.da.UpdateCursor(featureClass, fields)
     for row in cursor:
@@ -289,7 +216,8 @@ def computeSeverityWeightedAcres(
 
 
 def getDecadeFeatureClasses(listOfFeatureClasses, startYear, endYear):
-    '''Takes a list of feature classes and returns only those that fall within
+    '''Takes a list of feature classes and returns
+    a sorted list of only those that fall within
     the start and end year.
     '''
     decadeFilteredFeatureClasses = [
@@ -300,32 +228,16 @@ def getDecadeFeatureClasses(listOfFeatureClasses, startYear, endYear):
     return decadeFilteredFeatureClasses
 
 
-def getDecadeCopyFeatureClasses(listOfFeatureClasses, startYear, endYear):
-    '''Takes a list of feature classes and returns only those that fall within
-    the start and end year.
-    '''
-    decadeFilteredFeatureClasses = []
-    for featureClass in listOfFeatureClasses:
-        featureClassBasename = os.path.basename(featureClass)
-        year = findDigits(featureClassBasename)[1:]
-        year = int(listStringJoiner(year, ''))
-
-        if year in range(startYear, endYear):
-            decadeFilteredFeatureClasses.append(featureClass)
-
-    decadeFilteredFeatureClasses.sort()  
-    return decadeFilteredFeatureClasses
-
-
-def getDCAValuesFromFiles(listofFeatureClasses):
+def getDCAValuesFromFiles(listOfGeospatialFiles):
     '''Takes a list feature classes and returns DCA values
     that are found in the naming convention of the file.
     '''
     allDCAValues = set()
-    for featureClass in listofFeatureClasses:
-        DCAValue = [character for character
-                    in os.path.basename(featureClass[:-5])
-                    if character.isdigit()]
+    for geospatialFile in listOfGeospatialFiles:
+        DCAValue = findDigits(os.path.basename(geospatialFile[:-5]))
+        #DCAValue = [character for character
+        #            in os.path.basename(featureClass[:-5])
+        #            if character.isdigit()]
 
         DCAValue = listStringJoiner(DCAValue, '')
         allDCAValues.add(int(DCAValue))
@@ -336,11 +248,17 @@ def getDCAValuesFromFiles(listofFeatureClasses):
 
 
 def featuresInDecadeSingleDCAValue(listofFeatureClasses, inputDCAValue):
+    '''Given a list of featureClasses that fall within a specific time period
+    this funcition will filter out all the featureClasses from 
+    the input list of featureClasses contain a specific DCA value within
+    the featureClasses file naming convention
+    '''
     DCAFilteredFeatureClasses = []
     for featureClass in listofFeatureClasses:
-        DCAValue = [character for character
-                    in os.path.basename(featureClass)[2:-5]
-                    if character.isdigit()]
+        DCAValue = findDigits(os.path.basename(featureClass)[2:-5])
+        #DCAValue = [character for character
+        #            in os.path.basename(featureClass)[2:-5]
+        #            if character.isdigit()]
 
         DCAValue = listStringJoiner(DCAValue, '')
         DCAValue = int(DCAValue)
@@ -350,48 +268,30 @@ def featuresInDecadeSingleDCAValue(listofFeatureClasses, inputDCAValue):
     DCAFilteredFeatureClasses.sort()
     return DCAFilteredFeatureClasses
 
-def sumMidPoints(featureClass, fieldsList):
-    cursor = arcpy.da.UpdateCursor(featureClass, fieldsList)
+
+def sumValuesAcrossSimilarFields(featureClass, listOfSimilarFields):
+    '''Sums the value of similar fields within a featureClass. An
+    input list of fields is provided and it is assumed the last value in the
+    list is the field in which the summed valued will be calculated into.
+    '''
+    cursor = arcpy.da.UpdateCursor(featureClass, listOfSimilarFields)
     for row in cursor:
-        midPointValues = deepcopy(row[:-1])
-        while None in midPointValues:
-            midPointValues.remove(None)
-        row[-1] = sum(midPointValues)
+        valuesToSum = deepcopy(row[:-1])
+        while None in valuesToSum:
+            valuesToSum.remove(None)
+        row[-1] = sum(valuesToSum)
         cursor.updateRow(row)
 
 
-def computeTotalYears(featureClass, yearFields):
-    cursor = arcpy.da.UpdateCursor(featureClass, yearFields)
-    for row in cursor:
-        yearValues = deepcopy(row[:-1])
-        while None in yearValues:
-            yearValues.remove(None)
-        row[-1] = sum(yearValues)
-        cursor.updateRow(row)
-
-
-def computeTotalTPA(featureClass, TPAFields):
-    cursor = arcpy.da.UpdateCursor(featureClass, TPAFields)
-    for row in cursor:
-        TPAValues = deepcopy(row[:-1])
-        while None in TPAValues:
-            TPAValues.remove(None)
-        row[-1] = sum(TPAValues)
-        cursor.updateRow(row)
-
-
-def computeUnionMidpoint(featureClass, MidPointFields):
-    cursor = arcpy.da.UpdateCursor(featureClass, MidPointFields)
-    for row in cursor:
-        midPointValues = deepcopy(row[:-1])
-        while None in midPointValues:
-            midPointValues.remove(None)
-        row[-1] = sum(midPointValues)
-        cursor.updateRow(row)
-
-
-def computeSeverityMidpoint(featureClass, TPAField, MidPointField):
-    cursor = arcpy.da.UpdateCursor(featureClass, [TPAField, MidPointField])
+def computeSeverityMidpoint(featureClass, TPAField, midPointField):
+    '''Uses the TPA field to compute a severity midpoint value into
+    the input midPointField using the following classes
+    TPA == 0 returns: 0
+    TPA > 0 and <= 10 returns: 10
+    TPA > 10 and <= 10 returns: 30
+    TPA > 30 returns: 65
+    '''
+    cursor = arcpy.da.UpdateCursor(featureClass, [TPAField, midPointField])
     for row in cursor:
         if row[0] == 0:
             row[1] = 0
@@ -405,6 +305,12 @@ def computeSeverityMidpoint(featureClass, TPAField, MidPointField):
 
 
 def setNegativeTPAToZero(featureClass, TPAField):
+    '''Finds instances in the ADS data table where the TPA
+    value is equal to -1 and sets the TPA value to 1
+    or if the value is less than zero but does not equal
+    -1 the returned value to the TPA field is the negative value
+    multiplied by -1
+    '''
     cursor = arcpy.da.UpdateCursor(featureClass, TPAField)
     for row in cursor:
         if row[0] == -1:
@@ -415,9 +321,18 @@ def setNegativeTPAToZero(featureClass, TPAField):
 
 
 def populateHOSTCODEWithMostCommon(featureClass):
-    hostFields = [field.name for field in arcpy.ListFields(featureClass) if 'HOST' in field.name]
+    '''Finds all of the fields with the word HOST in them 
+    and then computes the most common value into an existing field 
+    in the table entitled "HOST_CODE"
+    '''
+    hostFields = listFields(featureClass, 'HOST')
+    #hostFields = [field.name for field in arcpy.ListFields(featureClass) if 'HOST' in field.name]
+
+    # ensures that the 'HOST_CODE' fields is the end of the list and the most common
+    # value will be computed into that field.
     hostFields.remove('HOST_CODE')
     hostFields.append('HOST_CODE')
+
     cursor = arcpy.da.UpdateCursor(featureClass, hostFields)
     for row in cursor:
         values = row[:]
@@ -429,6 +344,7 @@ def populateHOSTCODEWithMostCommon(featureClass):
             values.remove(-1)
         if values:
             counts = Counter(values)
+            # a list of tuples is returned with most_common [0][0] grabs the first element value 
             mostCommonHost = counts.most_common()[0][0]
             row[-1] = mostCommonHost
             cursor.updateRow(row)
