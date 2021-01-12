@@ -1,6 +1,9 @@
 import arcpy
 import os
 
+sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script')
+import NRGG
+
 sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script\ADSFunctions')
 import ADSFunctions
 
@@ -15,7 +18,7 @@ ADSFunctions.makeCopyOfOriginalOBJECTID('{}_copy'.format(os.path.basename(featur
 tableName = '{}_TableView'.format(os.path.basename(featureClass))
 arcpy.MakeTableView_management(os.path.join(outputGDB, copyName), tableName)
 
-DCAValues = ADSFunctions.uniqueValuesFromFeatureClassField(featureClass, 'DCA_CODE')
+DCAValues = NRGG.uniqueValuesFromFeatureClassField(featureClass, 'DCA_CODE')
 for DCAValue in DCAValues:
     selectTableName = 'ADS_Expanded_{}_{}'.format(DCAValue, year)
     arcpy.TableSelect_analysis(tableName, os.path.join(outputGDB, selectTableName), 'DCA_CODE = {}'.format(DCAValue))
@@ -40,5 +43,5 @@ for DCAValue in DCAValues:
     arcpy.AddField_management(selectTableName, 'DMG_TYPE', 'SHORT')
     arcpy.CalculateField_management(selectTableName, 'DMG_TYPE', '!DAMAGE_TYPE_CODE!', "PYTHON_9.3")
 
-    ADSFunctions.deleteUneededFields(selectTableName, ['ORIGINAL_ID', 'TPA', 'DCA_CODE', 'HOST', 'DMG_TYPE', 'ACRES_FINAL', 'DUPLICATE', 'SeverityWeightedAcres', 'Severity_Class', 'MidPoint'])
+    NRGG.deleteUneededFields(selectTableName, ['ORIGINAL_ID', 'TPA', 'DCA_CODE', 'HOST', 'DMG_TYPE', 'ACRES_FINAL', 'DUPLICATE', 'SeverityWeightedAcres', 'Severity_Class', 'MidPoint'])
     arcpy.AlterField_management(selectTableName, 'ACRES_FINAL', 'ACRES')

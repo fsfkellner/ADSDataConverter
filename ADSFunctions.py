@@ -8,29 +8,6 @@ sys.path.append(r'T:\FS\Reference\GeoTool\r01\Script')
 from NRGG import listStringJoiner
 
 
-def findDigits(stringText):
-    '''Takes a string of text and returns
-    all the digits found in the string
-    and returns a list of those digits
-    '''
-    textList = []
-    for character in stringText:
-        if character.isdigit():
-            textList.append(character)
-    return textList
-
-
-def deleteUneededFields(featureClass, fieldsToKeep):
-    '''Provide a list of fields to keep within the featureclass
-    and all other fields that are not required will be deleted
-    '''
-    fieldsToDelete = [
-        field.name for field in arcpy.ListFields(featureClass)
-        if field.name not in fieldsToKeep
-        and not field.required]
-    arcpy.DeleteField_management(featureClass, fieldsToDelete)
-
-
 def makeEmptyADSTable(tableName, outputWorkspace):
     '''Makes an empty table with the apporiate fields
     so historic ADS data can populated representing a 
@@ -44,19 +21,6 @@ def makeEmptyADSTable(tableName, outputWorkspace):
     arcpy.AddField_management(tableName, 'HOST', 'SHORT')
     arcpy.AddField_management(tableName, 'DMG_TYPE', 'SHORT')
     arcpy.AddField_management(tableName, 'ACRES', 'FLOAT')
-
-
-def makeNewGDBIfDoesntExist(folder, GDBName):
-    '''Makes a new file geodatabase if the
-    GDB does not already exist. Returns the the path
-    of the GDB
-    '''
-    if arcpy.Exists(os.path.join(folder, GDBName)):
-        GDBPath = os.path.join(folder, GDBName)
-    else:
-        arcpy.CreateFileGDB_management(folder, GDBName)
-        GDBPath = os.path.join(folder, GDBName)
-    return GDBPath
 
 
 def makeCopyOfOriginalOBJECTID(featurClass):
@@ -115,15 +79,6 @@ def setDamageToZero(featureClass):
             row[1] = 99999
             row[2] = -1
             cursor.updateRow(row)
-
-
-def uniqueValuesFromFeatureClassField(featureClass, field):
-    '''Returns the unique values from a
-    fields in a feature class
-    '''
-    with arcpy.da.SearchCursor(featureClass, field) as cursor:
-        uniqueValues = list(set(row[0] for row in cursor))
-    return uniqueValues
 
 
 def convertNonDCAValuesToNull(inputTable, DCAValue):
@@ -196,36 +151,6 @@ def computeADSMidPoint(featureClass, codeField, updateField):
         cursor.updateRow(row)
 
 
-def findAllFeatureClasses(folder, searchWord):
-    '''Returns a list of all the feature classes
-    that are within and the provided folder and any
-    addtionaly subfolders
-    '''
-    featureClasses = []
-    walk = arcpy.da.Walk(folder, datatype="FeatureClass")
-
-    for dirpath, dirnames, filenames in walk:
-        for filename in filenames:
-            if searchWord in os.path.join(dirpath, filename):
-                featureClasses.append(os.path.join(dirpath, filename))
-    return featureClasses
-
-
-def findAllTables(folder, searchWord):
-    '''Returns a list of all the feature classes
-    that are within and the provided folder and any
-    addtionaly subfolders
-    '''
-    tables = []
-    walk = arcpy.da.Walk(folder, datatype="Table")
-
-    for dirpath, dirnames, filenames in walk:
-        for filename in filenames:
-            if searchWord in os.path.join(dirpath, filename):
-                tables.append(os.path.join(dirpath, filename))
-    return tables
-
-
 def getAllUniqueDCAValues(featureClass):
     '''Returns a list of all the unique DCA values
     from the 3 fields in the Historic ADS data
@@ -240,15 +165,6 @@ def getAllUniqueDCAValues(featureClass):
         uniqueDCAValues.remove(-1)
     uniqueDCAValues.sort()
     return uniqueDCAValues
-
-
-def returnAllValuesFromField(featureClass, field):
-    '''Taks an input field and returns a sorted list off 
-    all the values in a field from an table or feature class attribute table
-    '''
-    allValues = [row[0] for row in arcpy.da.SearchCursor(featureClass, field)]
-    allValues.sort()
-    return allValues
 
 
 def selectPolygonsFromOriginalData(
@@ -287,7 +203,13 @@ def updateTablewithEveryDCARecord(tableName, everyDCARecordDict):
     '''
     cursor = arcpy.da.InsertCursor(
             tableName,
-            ['ORIGINAL_ID', 'TPA', 'DCA_CODE', 'HOST', 'DMG_TYPE', 'ACRES', 'DUPLICATE'])
+            ['ORIGINAL_ID',
+            'TPA',
+            'DCA_CODE',
+            'HOST',
+            'DMG_TYPE',
+            'ACRES',
+            'DUPLICATE'])
 
     for key in everyDCARecordDict:
         if everyDCARecordDict[key]:
@@ -427,21 +349,6 @@ def featuresInDecadeSingleDCAValue(listofFeatureClasses, inputDCAValue):
 
     DCAFilteredFeatureClasses.sort()
     return DCAFilteredFeatureClasses
-
-
-def getYearFields(featureClass):
-    yearFields = [
-        field.name for field in arcpy.ListFields(featureClass)
-        if 'YEAR' in field.name]
-    return yearFields
-
-
-def getSpecificFields(featureClass, textValue):
-    TPAFields = [
-        field.name for field in arcpy.ListFields(featureClass)
-        if textValue in field.name]
-    return TPAFields
-
 
 def sumMidPoints(featureClass, fieldsList):
     cursor = arcpy.da.UpdateCursor(featureClass, fieldsList)

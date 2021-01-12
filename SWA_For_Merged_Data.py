@@ -10,7 +10,7 @@ import NRGG
 
 ADSGDB = r'T:\FS\NFS\R01\Program\3400ForestHealthProtection\GIS\Kellner\SWA\R4_Merged_Historic_ADS_Data.gdb'
 
-tables = ADSFunctions.findAllTables(ADSGDB, 'ADS')
+tables = NRGG.findAllGeospatialFiles(ADSGDB, 'ADS', fileType='Table')
 for table in tables:
     print('Working on File', os.path.basename(table))
     ADSFunctions.setNegativeTPAToZero(table, 'TPA')
