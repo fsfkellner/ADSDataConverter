@@ -57,6 +57,7 @@ def mergeDuplicatesNoHost(tableName, workspace):
         arcpy.TableToTable_conversion(tableName, workspace, mergedTableName)
     return mergedTableName
 
+
 def makeEmptyADSTable(tableName, outputWorkspace):
     '''Makes an empty table with the appopriate fields
     so historic ADS data can populated representing a 
